@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
 	if(argc != 2) return printf("Present usage: %s <path_to_mime_file>\n", argv[0]), 1;
 
-	MimeModel m = parse_mime_file(argv[1]);
+	MimeModel* m = mime_model_create_from_file(argv[1]);
 
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
@@ -66,11 +66,11 @@ int main(int argc, char** argv) {
 	gtk_tree_view_column_add_attribute(col, renderer, "pixbuf", 2);
 
 
-	gtk_tree_view_set_model(GTK_TREE_VIEW(view), m.model);
-	GtkWidget* web_view = webkit_web_view_new ();
+	gtk_tree_view_set_model(GTK_TREE_VIEW(view), mime_model_get_gtk_model(m));
 
 	gtk_box_pack_start(GTK_BOX(hbox), view, FALSE, FALSE, 0);
-	WemedPanel* wp = create_wemed_panel(hbox, m.cidhash);
+	WemedPanel* wp = wemed_panel_create(hbox, mime_model_get_cid_hash(m));
+	wemed_panel_set_header_change_callback(wp, mime_model_update_header, m);
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(tree_selection_changed_cb), wp);
 	gtk_container_add(GTK_CONTAINER(window), hbox);
 
