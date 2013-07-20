@@ -79,6 +79,7 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 		
 		// add to tree
 		gtk_tree_store_set(h->m->store, &h->child, 0, g_mime_content_type_to_string(ct), 1, part, 2, icon, -1);
+		g_object_unref(icon);
 
 		// add to hash
 		const char* cid = g_mime_part_get_content_id((GMimePart*)part);
@@ -174,7 +175,9 @@ gboolean mime_model_update_header(void* user_data, GMimeObject* part_old, const 
 	p.obj = part_old;
 	gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), find_part, &p);
 
-	gtk_tree_store_set_value(m->store, p.iter, 1, part_new);
+		GMimeContentType* ct = g_mime_object_get_content_type(part_new);
+	//gtk_tree_store_set_value(m->store, p.iter, 1, part_new);
+	gtk_tree_store_set(m->store, p.iter, 0, g_mime_content_type_to_string(ct), 1, part_new);
 
 	//GMimePartIter* iter = g_mime_part_iter_new(part_old);
 	//printf("want to replace %s\n", g_mime_part_iter_get_path(iter));
@@ -198,7 +201,7 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	g_mime_init(0);
 	MimeModel* m = malloc(sizeof(MimeModel));
 	
-	m->store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_POINTER, G_TYPE_OBJECT);
+	m->store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_POINTER, GDK_TYPE_PIXBUF);
 	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
 	m->name = index(filename, '/') ? strdup(strrchr(filename, '/')) : strdup(filename);
 
