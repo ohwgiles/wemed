@@ -5,6 +5,8 @@ WEbkit-based Mime EDitor.
 
 Wemed can view, edit and create documents in MIME format. This includes email messages (.eml files) and MIME HTML archives (.mht or .mhtml files). Wemed uses Webkit to display HTML.
 
+Wemed is in early development. It can open and view MIME documents but editing and saving is not yet implemented
+
 See
 - http://en.wikipedia.org/wiki/MIME
 - http://en.wikipedia.org/wiki/MHTML
