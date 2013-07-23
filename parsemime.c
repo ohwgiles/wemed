@@ -36,6 +36,22 @@ struct TreeInsertHelper {
 
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
+
+static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimePart* part) {
+	// icon
+	GtkIconTheme* git = gtk_icon_theme_get_default();
+	GMimeContentType* ct = g_mime_object_get_content_type(part);
+	const char* content_type_name = g_mime_content_type_to_string(ct);
+	char* icon_name = strdup(content_type_name);
+	for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
+	GdkPixbuf* icon = gtk_icon_theme_load_icon(git, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+	free(icon_name);
+	
+	// add to tree
+	gtk_tree_store_set(store, iter, 0, g_mime_content_type_to_string(ct), 1, part, 2, icon, -1);
+	g_object_unref(icon);
+}
+
 static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user_data) {
 
 	struct TreeInsertHelper* h = (struct TreeInsertHelper*) user_data;
@@ -67,22 +83,10 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 		h->current = parent;
 	} else if (GMIME_IS_PART (part)) {
 		printf("part\n");
-		// icon
-		GtkIconTheme* git = gtk_icon_theme_get_default();
-		GMimeContentType* ct = g_mime_object_get_content_type(part);
-		gtk_tree_store_append(h->m->store, &h->child, &h->current);
-		const char* content_type_name = g_mime_content_type_to_string(ct);
-		char* icon_name = strdup(content_type_name);
-		for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
-		GdkPixbuf* icon = gtk_icon_theme_load_icon(git, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
-		free(icon_name);
-		
-		// add to tree
-		gtk_tree_store_set(h->m->store, &h->child, 0, g_mime_content_type_to_string(ct), 1, part, 2, icon, -1);
-		g_object_unref(icon);
-
 		// add to hash
 		const char* cid = g_mime_part_get_content_id((GMimePart*)part);
+		gtk_tree_store_append(h->m->store, &h->child, &h->current);
+		add_part_to_store(h->m->store, &h->child, part);
 		if(cid) {
 			/*
 			GMimeDataWrapper* gdw = g_mime_part_get_content_object(part);
@@ -123,7 +127,7 @@ MimeModel* mime_model_create_empty() {
 }
 
 struct PartFinder {
-	GtkTreeIter* iter;
+	GtkTreeIter iter;
 	GMimeObject* obj;
 };
 
@@ -134,7 +138,7 @@ gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, vo
 	printf("comparing %p with %p\n", obj, p->obj);
 	if(obj == p->obj) {
 		printf("matched!\n");
-		p->iter = iter;
+		p->iter = *iter;
 		return TRUE;
 	}
 	return FALSE;
@@ -175,9 +179,13 @@ gboolean mime_model_update_header(void* user_data, GMimeObject* part_old, const 
 	p.obj = part_old;
 	gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), find_part, &p);
 
-		GMimeContentType* ct = g_mime_object_get_content_type(part_new);
-	//gtk_tree_store_set_value(m->store, p.iter, 1, part_new);
-	gtk_tree_store_set(m->store, p.iter, 0, g_mime_content_type_to_string(ct), 1, part_new);
+	GMimeContentType* ct = g_mime_object_get_content_type(part_new);
+	//gtk_tree_store_set_value(m->store, &p.iter, 1, part_new);
+	//gtk_tree_store_set(m->store, &p.iter, 0, g_mime_content_type_to_string(ct), 1, part_new, -1);
+	add_part_to_store(m->store, &p.iter, GMIME_PART(part_new));
+	//printf("get_iter_first result:%d\n", gtk_tree_model_get_iter_first(GTK_TREE_MODEL(m->store), p.iter));
+	//gtk_tree_model_iter_children(GTK_TREE_MODEL(m->store), p.iter, p.iter);
+	//gtk_tree_store_set(m->store, &p.iter, 0, "replacement!", 1, NULL);
 
 	//GMimePartIter* iter = g_mime_part_iter_new(part_old);
 	//printf("want to replace %s\n", g_mime_part_iter_get_path(iter));
