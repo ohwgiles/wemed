@@ -144,20 +144,20 @@ gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, vo
 	return FALSE;
 }
 
-gboolean mime_model_update_header(void* user_data, GMimeObject* part_old, const char* new_header) {
+GMimeObject* mime_model_update_header(void* user_data, GMimeObject* part_old, const char* new_header) {
 	MimeModel* m = user_data;
 	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header, strlen(new_header));
 	GMimeParser* parse = g_mime_parser_new_with_stream(memstream);
 	GMimeObject* part_new = g_mime_parser_construct_part(parse);
 	if(!part_new) {
 		printf("parsing failed\n"); // todo dialog box
-		return FALSE;
+		return NULL;
 	}
 
 	printf("parsed headers: %s\n", g_mime_object_get_headers(part_new));
 	if(GMIME_IS_MULTIPART(part_new) != GMIME_IS_MULTIPART(part_old) || GMIME_IS_PART(part_new) != GMIME_IS_PART(part_old)) {
 		printf("apply failed, cannot change part type\n"); // todo dialog box
-		return FALSE;
+		return NULL;
 	}
 	if(GMIME_IS_MULTIPART(part_new) && GMIME_IS_MULTIPART(part_old)) {
 		// make sure the boundaries are equal
@@ -166,7 +166,7 @@ gboolean mime_model_update_header(void* user_data, GMimeObject* part_old, const 
 		printf("comparing %s with %s\n", boundary_old, boundary_new);
 		if(strcmp(boundary_old, boundary_new) != 0) {
 			printf("cannot modify boundary\n"); //todo dialog
-			return FALSE;
+			return NULL;
 		}
 	}
 	// if we got here, all is well, so we can replace the old headers with the new ones
@@ -192,7 +192,7 @@ gboolean mime_model_update_header(void* user_data, GMimeObject* part_old, const 
 	//g_mime_part_iter_replace(iter, part_new);
 	//g_mime_part_iter_free(iter);
 	//mime_model_reparse(m);
-	return TRUE;
+	return part_new;
 }
 
 void mime_model_reparse(MimeModel* m) {

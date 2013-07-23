@@ -238,10 +238,12 @@ static void headers_changed_cb(GtkTextBuffer* text, WemedPanel* wp) {
 
 static void headers_apply_cb(GtkButton* apply, WemedPanel* wp) {
 	if(wp->headers_changed) {
-	GtkTextIter start, end;
-	gtk_text_buffer_get_bounds(wp->headertext, &start, &end);
-	gchar* new_header = gtk_text_buffer_get_text(wp->headertext, &start, &end, TRUE);
-		if( (*wp->headers_changed)(wp->headers_changed_userdata, wp->current_obj, new_header) ) {
+		GtkTextIter start, end;
+		gtk_text_buffer_get_bounds(wp->headertext, &start, &end);
+		gchar* new_header = gtk_text_buffer_get_text(wp->headertext, &start, &end, TRUE);
+		GMimeObject* new_part = (*wp->headers_changed)(wp->headers_changed_userdata, wp->current_obj, new_header);
+		if(new_part) {
+			load_document_part(wp, new_part);
 			printf("header successfully updated\n");
 		} else {
 			printf("failed to update header\n");
