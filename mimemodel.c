@@ -8,7 +8,7 @@
 #include <gtk/gtk.h>
 #include <gmime/gmime.h>
 #include <string.h>
-#include "parsemime.h"
+#include "mimemodel.h"
 
 struct MimeModel_S {
 	GtkTreeStore* store;

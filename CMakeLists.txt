@@ -16,6 +16,6 @@ add_definitions(${GTK3_CFLAGS_OTHER} ${WEBKIT2GTK3_CFLAGS_OTHER} ${GMIME26_CFLAG
 
 add_definitions(-std=gnu99 -Wall -Wextra)
 
-add_executable(wemed main.c openwith.c parsemime.c mimeapp.c wemedpanel.c)
+add_executable(wemed main.c openwith.c mainwindow.c mimeapp.c mimemodel.c wemedpanel.c)
 target_link_libraries(wemed ${GTK3_LIBRARIES} ${WEBKIT2GTK3_LIBRARIES} ${GMIME26_LIBRARIES}) 
 

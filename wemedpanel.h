@@ -10,8 +10,9 @@ typedef struct WemedPanel_S WemedPanel;
 
 
 typedef GMimeObject* (*WemedPanelHeaderCallback)(void*, GMimeObject*, const char*);
-WemedPanel* wemed_panel_create(GtkWidget* parent, GHashTable* cidhash);
-void wemed_panel_set_header_change_callback(WemedPanel*, WemedPanelHeaderCallback, void*);
+WemedPanel* wemed_panel_create(GtkWidget* parent);
+void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash);
+void wemed_panel_set_header_change_callback(WemedPanel* wp, WemedPanelHeaderCallback, void*);
 void load_document_part(WemedPanel* wp, GMimeObject* obj);
 
 #endif

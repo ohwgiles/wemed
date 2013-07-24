@@ -17,6 +17,7 @@ struct WemedPanel_S {
 	GtkWidget* webview;
 	GtkTextBuffer* headertext;
 	WemedPanelHeaderCallback headers_changed;
+	WebKitWebContext* ctx;
 	void* headers_changed_userdata;
 	GMimeObject* current_obj;
 	GtkWidget* progress_bar;
@@ -28,7 +29,7 @@ struct WemedPanel_S {
 	char* last_exec_path;
 };
 
-WebKitWebContext* ctx;
+
 
 gboolean load_failed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, gchar *failing_uri, gpointer error, gpointer user_data) {
 	(void) web_view; //unused
@@ -47,7 +48,7 @@ void load_document_part(WemedPanel* wp, GMimeObject* obj) {
 	wp->current_obj = obj;
 
 	webkit_web_view_stop_loading(WEBKIT_WEB_VIEW(wp->webview));
-	webkit_web_context_clear_cache(ctx);
+//	webkit_web_context_clear_cache(ctx);
 	//webkit_web_view_load_plain_text(wp->webview, "");
 
 	if(GMIME_IS_MESSAGE(obj)) { 
@@ -119,6 +120,7 @@ void load_document_part(WemedPanel* wp, GMimeObject* obj) {
 	}
 }
 
+
 void cid_loading_cb(WebKitURISchemeRequest* request, gpointer user_data) {
 	GHashTable* hash = (GHashTable*) user_data;
 	const gchar* path = webkit_uri_scheme_request_get_path(request);
@@ -146,6 +148,9 @@ void cid_loading_cb(WebKitURISchemeRequest* request, gpointer user_data) {
 	}
 }
 
+void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash) {
+	webkit_web_context_register_uri_scheme(wp->ctx, "cid", cid_loading_cb, hash, NULL);
+}
 void load_changed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, WemedPanel* wp) {
 	(void) web_view; //unused
 	switch(load_event) {
@@ -251,15 +256,14 @@ static void headers_apply_cb(GtkButton* apply, WemedPanel* wp) {
 	}
 }
 
-WemedPanel* wemed_panel_create(GtkWidget* parent, GHashTable* cidhash) {
+WemedPanel* wemed_panel_create(GtkWidget* parent) {
 	// create and initialise our data structure
 	WemedPanel* wp = (WemedPanel*) malloc(sizeof(WemedPanel));
 	wp->last_exec_path = 0;
 
 	// configure the webkit context
-	ctx = webkit_web_context_get_default();
-	webkit_web_context_set_cache_model(ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
-	webkit_web_context_register_uri_scheme(ctx, "cid", cid_loading_cb, cidhash, NULL);
+	wp->ctx = webkit_web_context_get_default();
+	webkit_web_context_set_cache_model(wp->ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
 
 	// create and configure all our widgets
 	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
