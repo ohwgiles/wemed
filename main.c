@@ -18,6 +18,9 @@ struct DisplayWidgets {
 	GtkWidget* webview;
 	GtkWidget* image;
 };
+struct Wemed {
+	MimeModel* model;
+};
 
 void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
 	printf("selection changed!\n");
@@ -35,7 +38,11 @@ void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
 }
 
 
-GtkWidget* build_menubar() {
+void menu_save(GtkMenuItem* item, struct Wemed* w) {
+	mime_model_write_to_file(w->model, "/tmp/wemed-save");
+}
+
+GtkWidget* build_menubar(struct Wemed* w) {
 	GtkWidget* menubar = gtk_menu_bar_new();
 
 	{ // File
@@ -65,6 +72,15 @@ GtkWidget* build_menubar() {
 		GtkWidget* open = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), open);
 		}
+		{ // File -> Save
+		GtkWidget* save = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE, NULL);
+		g_signal_connect(G_OBJECT(save), "activate", G_CALLBACK(menu_save), w);
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), save);
+		}
+		{ // File -> Save As
+		GtkWidget* saveas = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE_AS, NULL);
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), saveas);
+		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Quit
 		GtkWidget* quit = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
@@ -78,17 +94,20 @@ GtkWidget* build_menubar() {
 
 }
 
+
 int main(int argc, char** argv) {
 	gtk_init(&argc, &argv);
+	struct Wemed w;
 
 	if(argc != 2) return printf("Present usage: %s <path_to_mime_file>\n", argv[0]), 1;
 
 	MimeModel* m = mime_model_create_from_file(argv[1]);
+	w.model = m;
 
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-	GtkWidget* menubar = build_menubar();
+	GtkWidget* menubar = build_menubar(&w);
 
 	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 3);
 

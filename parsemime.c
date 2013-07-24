@@ -37,7 +37,7 @@ struct TreeInsertHelper {
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
-static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimePart* part) {
+static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObject* part) {
 	// icon
 	GtkIconTheme* git = gtk_icon_theme_get_default();
 	GMimeContentType* ct = g_mime_object_get_content_type(part);
@@ -171,18 +171,37 @@ GMimeObject* mime_model_update_header(void* user_data, GMimeObject* part_old, co
 	}
 	// if we got here, all is well, so we can replace the old headers with the new ones
 
+	// it is a decidedly different procedure for parts and multiparts
 	if(GMIME_IS_PART(part_new)) {
 		g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
+	} else if(GMIME_IS_MULTIPART(part_new)) {
+		for(int i = 0, n = g_mime_multipart_get_count(part_old); i < n; ++i) {
+			g_mime_multipart_add(part_new, g_mime_multipart_get_part(part_old, i));
+		}
 	}
 
 	struct PartFinder p;
 	p.obj = part_old;
 	gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), find_part, &p);
-
-	GMimeContentType* ct = g_mime_object_get_content_type(part_new);
+	GtkTreeIter parent;
+	if(gtk_tree_model_iter_parent(GTK_TREE_MODEL(m->store), &parent, &p.iter) != TRUE)
+		return NULL;
+	GValue v = {0};
+	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &parent, 1, &v);
+	GMimeMultipart* multipart = (GMimeMultipart*) g_value_get_pointer(&v);
+	int index = g_mime_multipart_index_of(multipart, part_old);
+	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
+	g_object_unref(part_old_);
+	add_part_to_store(m->store, &p.iter, GMIME_PART(part_new));
+	
+	//GMimeContentType* ct = g_mime_object_get_content_type(part_new);
 	//gtk_tree_store_set_value(m->store, &p.iter, 1, part_new);
 	//gtk_tree_store_set(m->store, &p.iter, 0, g_mime_content_type_to_string(ct), 1, part_new, -1);
-	add_part_to_store(m->store, &p.iter, GMIME_PART(part_new));
+
+	// add part to mime tree
+	// ***************************
+	// at this point we could just reread the mime tree into the tree view, but as it would
+	// be speedier to just replace the relevant part and we have everything necessary, do that
 	//printf("get_iter_first result:%d\n", gtk_tree_model_get_iter_first(GTK_TREE_MODEL(m->store), p.iter));
 	//gtk_tree_model_iter_children(GTK_TREE_MODEL(m->store), p.iter, p.iter);
 	//gtk_tree_store_set(m->store, &p.iter, 0, "replacement!", 1, NULL);
@@ -228,7 +247,42 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	mime_model_reparse(m);
 	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
+	mime_model_write_to_file(m, "/tmp/test");
 
 	return m;
+}
+
+gboolean write_parts_to_stream(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, gpointer data) {
+	GMimeStream* stream = (GMimeStream*) data;
+	GValue v = {0};
+	//g_value_init(&v, G_TYPE_POINTER);
+	gtk_tree_model_get_value(model, iter, 1, &v);
+	GMimeObject* obj = g_value_get_pointer(&v);
+
+	//GMimeContentType* ct = g_mime_object_get_content_type(obj);
+	//printf("attempt to write part with ct %s\n", g_mime_content_type_to_string(ct));
+	g_mime_object_write_to_stream(obj, stream);
+	g_value_unset(&v);
+	return FALSE;
+}
+
+gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
+	FILE* fp = fopen(filename, "wb");
+	if(!fp) return FALSE;
+	
+	GMimeStream* gfs = g_mime_stream_file_new(fp);
+	if(!gfs) return FALSE;
+	GtkTreeIter first;
+	gtk_tree_model_get_iter_first(GTK_TREE_MODEL(m->store), &first);
+	GValue v = {0};
+	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &first, 1, &v);
+	GMimeObject* root = g_value_get_pointer(&v);
+	g_value_unset(&v);
+	g_mime_object_write_to_stream(root, gfs);
+
+
+	//gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), write_parts_to_stream, gfs);
+
+	return TRUE;
 }
 
