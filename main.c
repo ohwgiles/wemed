@@ -35,6 +35,49 @@ void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
 }
 
 
+GtkWidget* build_menubar() {
+	GtkWidget* menubar = gtk_menu_bar_new();
+
+	{ // File
+	GtkWidget* file = gtk_menu_item_new_with_mnemonic("_File");
+	GtkWidget* filemenu = gtk_menu_new();
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(file), filemenu);
+		{ // File -> New
+		GtkWidget* new = gtk_menu_item_new_with_mnemonic("_New");
+		GtkWidget* newmenu = gtk_menu_new();
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM(new), newmenu);
+			{ // File -> New -> Blank Document
+			GtkWidget* blank = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(blank), "_Blank Document");
+			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), blank);
+			}
+			{ // File -> New -> Email Template
+			GtkWidget* email = gtk_menu_item_new_with_mnemonic("_Email Template");
+			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), email);
+			}
+			{ // File -> New -> MHTML Template
+			GtkWidget* mhtml = gtk_menu_item_new_with_mnemonic("M_HTML Template");
+			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), mhtml);
+			}
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), new);
+		}
+		{ // File -> Open
+		GtkWidget* open = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), open);
+		}
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
+		{ // File -> Quit
+		GtkWidget* quit = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
+		g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(gtk_main_quit), NULL);
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), quit);
+		}
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar), file);
+	}
+
+	return menubar;
+
+}
+
 int main(int argc, char** argv) {
 	gtk_init(&argc, &argv);
 
@@ -44,6 +87,11 @@ int main(int argc, char** argv) {
 
 	GtkWidget* window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	GtkWidget* menubar = build_menubar();
+
+	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 3);
+
 
 	GtkWidget* hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
@@ -76,7 +124,10 @@ int main(int argc, char** argv) {
 	WemedPanel* wp = wemed_panel_create(hbox, mime_model_get_cid_hash(m));
 	wemed_panel_set_header_change_callback(wp, mime_model_update_header, m);
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(tree_selection_changed_cb), wp);
-	gtk_container_add(GTK_CONTAINER(window), hbox);
+	
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
+
+	gtk_container_add(GTK_CONTAINER(window), vbox);
 
 
 	gtk_widget_show_all(window);
