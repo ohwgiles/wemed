@@ -262,6 +262,7 @@ gboolean write_parts_to_stream(GtkTreeModel* model, GtkTreePath* path, GtkTreeIt
 	//GMimeContentType* ct = g_mime_object_get_content_type(obj);
 	//printf("attempt to write part with ct %s\n", g_mime_content_type_to_string(ct));
 	g_mime_object_write_to_stream(obj, stream);
+	g_mime_stream_flush(stream);
 	g_value_unset(&v);
 	return FALSE;
 }
