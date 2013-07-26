@@ -14,8 +14,10 @@ MimeModel* mime_model_create_from_file(const char*);
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel*);
 GHashTable* mime_model_get_cid_hash(MimeModel*);
+GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
 
-GMimeObject* mime_model_update_header(void*, GMimeObject* obj, const char* new_header);
+GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* new_header);
+gboolean mime_model_write_to_file(MimeModel* m, const char* filename);
 void mime_model_reparse(MimeModel*);
 
 void mime_model_free(MimeModel*);

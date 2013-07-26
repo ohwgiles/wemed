@@ -35,6 +35,7 @@ struct TreeInsertHelper {
 };
 
 
+GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
 static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObject* part) {
@@ -144,8 +145,8 @@ gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, vo
 	return FALSE;
 }
 
-GMimeObject* mime_model_update_header(void* user_data, GMimeObject* part_old, const char* new_header) {
-	MimeModel* m = user_data;
+GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const char* new_header) {
+	//MimeModel* m = user_data;
 	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header, strlen(new_header));
 	GMimeParser* parse = g_mime_parser_new_with_stream(memstream);
 	GMimeObject* part_new = g_mime_parser_construct_part(parse);
@@ -175,8 +176,8 @@ GMimeObject* mime_model_update_header(void* user_data, GMimeObject* part_old, co
 	if(GMIME_IS_PART(part_new)) {
 		g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
 	} else if(GMIME_IS_MULTIPART(part_new)) {
-		for(int i = 0, n = g_mime_multipart_get_count(part_old); i < n; ++i) {
-			g_mime_multipart_add(part_new, g_mime_multipart_get_part(part_old, i));
+		for(int i = 0, n = g_mime_multipart_get_count(GMIME_MULTIPART(part_old)); i < n; ++i) {
+			g_mime_multipart_add(GMIME_MULTIPART(part_new), g_mime_multipart_get_part(GMIME_MULTIPART(part_old), i));
 		}
 	}
 
@@ -192,7 +193,7 @@ GMimeObject* mime_model_update_header(void* user_data, GMimeObject* part_old, co
 	int index = g_mime_multipart_index_of(multipart, part_old);
 	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
 	g_object_unref(part_old_);
-	add_part_to_store(m->store, &p.iter, GMIME_PART(part_new));
+	add_part_to_store(m->store, &p.iter, part_new);
 	
 	//GMimeContentType* ct = g_mime_object_get_content_type(part_new);
 	//gtk_tree_store_set_value(m->store, &p.iter, 1, part_new);
@@ -225,7 +226,6 @@ void mime_model_reparse(MimeModel* m) {
 }
 
 MimeModel* mime_model_create_from_file(const char* filename) {
-	g_mime_init(0);
 	MimeModel* m = malloc(sizeof(MimeModel));
 	
 	m->store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_POINTER, GDK_TYPE_PIXBUF);
@@ -284,5 +284,16 @@ gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	//gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), write_parts_to_stream, gfs);
 
 	return TRUE;
+}
+
+void mime_model_free(MimeModel* m) {
+	if(m) {
+	g_object_unref(m->store);
+	g_hash_table_unref(m->cidhash);
+	free(m->name);
+	g_object_unref(m->message);
+	//todo delete the filter
+	free(m);
+	}
 }
 

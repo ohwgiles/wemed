@@ -19,6 +19,7 @@ struct WemedWindow_S {
 	GtkWidget* view;
 	WemedPanel* panel;
 	char* filename;
+	gboolean dirty;
 };
 
 void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
@@ -37,11 +38,60 @@ void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
 }
 
 
-void menu_save(GtkMenuItem* item, WemedWindow* w) {
-	mime_model_write_to_file(w->model, "/tmp/wemed-save");
+gboolean menu_save_as(GtkMenuItem* item, WemedWindow* w) {
+	(void) item; // unused
+	gboolean ret = TRUE;
+	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Save File", GTK_WINDOW(w->rootwindow), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
+	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), w->filename?:"untitled.eml");
+
+	ret = (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT);
+	if(ret) {
+		char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+		ret = mime_model_write_to_file(w->model, filename);
+		if(ret) {
+			w->dirty = FALSE;
+			w->filename = strdup(filename);
+		}
+		g_free(filename);
+	}
+	gtk_widget_destroy (dialog);
+	return ret;
+}
+
+gboolean menu_save(GtkMenuItem* item, WemedWindow* w) {
+	gboolean ret = TRUE;
+	if(w->filename == NULL)
+		ret = menu_save_as(NULL, w);
+	else if(w->dirty) {
+		ret = mime_model_write_to_file(w->model, w->filename);
+		if(ret) w->dirty = FALSE;
+	}
+	return ret;
+}
+gboolean menu_close(GtkMenuItem* item, WemedWindow* w) {
+	(void) item; // unused
+	if(w->dirty) {
+		GtkWidget* dialog = gtk_message_dialog_new(
+				GTK_WINDOW(w->rootwindow),
+				GTK_DIALOG_DESTROY_WITH_PARENT,
+				GTK_MESSAGE_QUESTION,
+				GTK_BUTTONS_YES_NO,
+				"File has been modified. Would you like to save it?");
+		if(gtk_dialog_run (GTK_DIALOG (dialog)) != GTK_RESPONSE_YES) return FALSE;
+		if(menu_save(NULL, w) != TRUE) return FALSE;
+	}
+	mime_model_free(w->model);
+	w->model = 0;
+	wemed_panel_clear(w->panel);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(w->view), NULL);
+	return TRUE;
 }
 
 void menu_open(GtkMenuItem* item, WemedWindow* w) {
+	(void) item; // unused
+	if(menu_close(NULL, w) == FALSE) return;
+
 	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Open File",
 			w->rootwindow,
 			GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -58,6 +108,13 @@ void menu_open(GtkMenuItem* item, WemedWindow* w) {
 	gtk_widget_destroy (dialog);
 }
 
+void menu_new_blank(GtkMenuItem* item, WemedWindow* w) {
+	(void) item; // unused
+	if(menu_close(NULL, w) == FALSE) return;
+	
+
+}
+
 
 GtkWidget* build_menubar(WemedWindow* w) {
 	GtkWidget* menubar = gtk_menu_bar_new();
@@ -72,6 +129,7 @@ GtkWidget* build_menubar(WemedWindow* w) {
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(new), newmenu);
 			{ // File -> New -> Blank Document
 			GtkWidget* blank = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
+			g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_new_blank), w);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(blank), "_Blank Document");
 			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), blank);
 			}
@@ -97,7 +155,13 @@ GtkWidget* build_menubar(WemedWindow* w) {
 		}
 		{ // File -> Save As
 		GtkWidget* saveas = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE_AS, NULL);
+		g_signal_connect(G_OBJECT(saveas), "activate", G_CALLBACK(menu_save_as), w);
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), saveas);
+		}
+		{ // File -> Close
+		GtkWidget* close = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLOSE, NULL);
+		g_signal_connect(G_OBJECT(close), "activate", G_CALLBACK(menu_close), w);
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), close);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Quit
@@ -112,13 +176,16 @@ GtkWidget* build_menubar(WemedWindow* w) {
 
 }
 
+void headers_changed(WemedWindow* w, GMimeObject* obj, const char* new_headers) {
+	w->dirty = TRUE;
+	mime_model_update_header(w->model, obj, new_headers);
+}
 
 gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 	// todo close old model
 	MimeModel* m = mime_model_create_from_file(filename);
 	if(!m) return FALSE;
 	wemed_panel_set_cid_table(w->panel, mime_model_get_cid_hash(m));
-	wemed_panel_set_header_change_callback(w->panel, mime_model_update_header, m);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->view), mime_model_get_gtk_model(m));
 	
 	w->model = m;
@@ -165,6 +232,7 @@ WemedWindow* wemed_window_create() {
 
 	gtk_box_pack_start(GTK_BOX(hbox), w->view, FALSE, FALSE, 0);
 	w->panel = wemed_panel_create(hbox);
+	wemed_panel_set_header_change_callback(w->panel, headers_changed, w);
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(tree_selection_changed_cb), w);
 	
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);

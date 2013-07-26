@@ -15,6 +15,7 @@
 
 struct WemedPanel_S {
 	GtkWidget* webview;
+	GtkWidget* headerview;
 	GtkTextBuffer* headertext;
 	WemedPanelHeaderCallback headers_changed;
 	WebKitWebContext* ctx;
@@ -45,9 +46,9 @@ void wemed_panel_set_header_change_callback(WemedPanel* wp, WemedPanelHeaderCall
 }
 
 void load_document_part(WemedPanel* wp, GMimeObject* obj) {
+	wemed_panel_clear(wp);
 	wp->current_obj = obj;
 
-	webkit_web_view_stop_loading(WEBKIT_WEB_VIEW(wp->webview));
 //	webkit_web_context_clear_cache(ctx);
 	//webkit_web_view_load_plain_text(wp->webview, "");
 
@@ -59,6 +60,8 @@ void load_document_part(WemedPanel* wp, GMimeObject* obj) {
 	char* str = g_mime_object_get_headers(obj);
 	gtk_text_buffer_set_text(wp->headertext, str, strlen(str));
 	free(str);
+
+	gtk_widget_set_sensitive(wp->headerview, TRUE);
 
 	if(GMIME_IS_PART(obj)) {
 		GMimeContentType* ct = g_mime_object_get_content_type(obj);
@@ -91,7 +94,7 @@ void load_document_part(WemedPanel* wp, GMimeObject* obj) {
 			g_mime_stream_reset(gms);
 			webkit_web_view_load_html(WEBKIT_WEB_VIEW(wp->webview),  str, NULL);
 			free(str);
-			//gtk_widget_show(wp->webview);
+			gtk_widget_show(wp->webview);
 
 
 		} else if(strncmp("image", content_type_name, 5) == 0) {
@@ -111,11 +114,13 @@ void load_document_part(WemedPanel* wp, GMimeObject* obj) {
 			g_mime_stream_reset(gms);
 			webkit_web_view_load_uri(WEBKIT_WEB_VIEW(wp->webview),  str);
 			free(str); 
+			gtk_widget_show(wp->webview);
 
 			printf("selected a part!\n");
 		} else {
 			// don't know how to display this content, hide the widget
-			gtk_widget_hide(wp->webview);
+			// TODO show "cannot display this content"
+			//gtk_widget_hide(wp->webview);
 		}
 	}
 }
@@ -256,6 +261,16 @@ static void headers_apply_cb(GtkButton* apply, WemedPanel* wp) {
 	}
 }
 
+void wemed_panel_clear(WemedPanel* wp) {
+	webkit_web_view_stop_loading(WEBKIT_WEB_VIEW(wp->webview));
+	gtk_widget_hide(wp->webview);
+	GtkTextIter start, end;
+	gtk_text_buffer_get_start_iter(wp->headertext, &start);
+	gtk_text_buffer_get_end_iter(wp->headertext, &end);
+	gtk_text_buffer_delete(wp->headertext, &start, &end);
+	gtk_widget_set_sensitive(wp->headerview, FALSE);
+}
+
 WemedPanel* wemed_panel_create(GtkWidget* parent) {
 	// create and initialise our data structure
 	WemedPanel* wp = (WemedPanel*) malloc(sizeof(WemedPanel));
@@ -268,8 +283,8 @@ WemedPanel* wemed_panel_create(GtkWidget* parent) {
 	// create and configure all our widgets
 	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		GtkWidget* hdbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-			GtkWidget* headers = gtk_text_view_new();
-			wp->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(headers));
+			wp->headerview = gtk_text_view_new();
+			wp->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(wp->headerview));
 			GtkWidget* bvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 				wp->button_apply = gtk_button_new_with_label("Apply");
 				gtk_widget_set_sensitive(wp->button_apply, FALSE);
@@ -299,7 +314,7 @@ WemedPanel* wemed_panel_create(GtkWidget* parent) {
 	// layout
 	gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new("Headers:"), FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), hdbox, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(hdbox), headers, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(hdbox), wp->headerview, TRUE, TRUE, 0);
 	gtk_box_pack_end(GTK_BOX(hdbox), bvbox, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(bvbox), wp->button_apply, FALSE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(bvbox), wp->button_revert, FALSE, TRUE, 0);

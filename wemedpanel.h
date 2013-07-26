@@ -13,6 +13,7 @@ typedef GMimeObject* (*WemedPanelHeaderCallback)(void*, GMimeObject*, const char
 WemedPanel* wemed_panel_create(GtkWidget* parent);
 void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash);
 void wemed_panel_set_header_change_callback(WemedPanel* wp, WemedPanelHeaderCallback, void*);
+void wemed_panel_clear(WemedPanel* wp);
 void load_document_part(WemedPanel* wp, GMimeObject* obj);
 
 #endif
