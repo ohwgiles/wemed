@@ -14,6 +14,7 @@
 #include "openwith.h"
 
 struct WemedPanel_S {
+	GtkWidget* panel;
 	GtkWidget* webview;
 	GtkWidget* headerview;
 	GtkTextBuffer* headertext;
@@ -31,6 +32,9 @@ struct WemedPanel_S {
 };
 
 
+GtkWidget* wemed_panel_get_widget(WemedPanel* wp) {
+	return wp->panel;
+}
 
 gboolean load_failed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, gchar *failing_uri, gpointer error, gpointer user_data) {
 	(void) web_view; //unused
@@ -271,7 +275,7 @@ void wemed_panel_clear(WemedPanel* wp) {
 	gtk_widget_set_sensitive(wp->headerview, FALSE);
 }
 
-WemedPanel* wemed_panel_create(GtkWidget* parent) {
+WemedPanel* wemed_panel_create() {
 	// create and initialise our data structure
 	WemedPanel* wp = (WemedPanel*) malloc(sizeof(WemedPanel));
 	wp->last_exec_path = 0;
@@ -281,7 +285,7 @@ WemedPanel* wemed_panel_create(GtkWidget* parent) {
 	webkit_web_context_set_cache_model(wp->ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
 
 	// create and configure all our widgets
-	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	wp->panel = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
 		GtkWidget* hdbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 			wp->headerview = gtk_text_view_new();
 			wp->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(wp->headerview));
@@ -305,28 +309,34 @@ WemedPanel* wemed_panel_create(GtkWidget* parent) {
 	g_signal_connect(G_OBJECT(wp->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), wp);
 	g_signal_connect(G_OBJECT(wp->headertext), "changed", G_CALLBACK(headers_changed_cb), wp);
 	g_signal_connect(G_OBJECT(wp->button_apply), "clicked", G_CALLBACK(headers_apply_cb), wp);
-	g_signal_connect(G_OBJECT(vbox), "show", G_CALLBACK(hide_progress_bar), wp->progress_bar);
+	g_signal_connect(G_OBJECT(wp->panel), "show", G_CALLBACK(hide_progress_bar), wp->progress_bar);
 	g_signal_connect(G_OBJECT(wp->button_export), "clicked", G_CALLBACK(export_cb), wp);
 	g_signal_connect(G_OBJECT(wp->button_open_default), "clicked", G_CALLBACK(open_default_cb), wp);
 	g_signal_connect(G_OBJECT(wp->button_open_with), "clicked", G_CALLBACK(open_with_cb), wp);
 
 
 	// layout
-	gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new("Headers:"), FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), hdbox, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(hdbox), wp->headerview, TRUE, TRUE, 0);
-	gtk_box_pack_end(GTK_BOX(hdbox), bvbox, FALSE, FALSE, 0);
+	//gtk_paned_pack1(GTK_PANED(wp->panel), gtk_label_new("Headers:"), FALSE, FALSE);
+	
+	GtkWidget* scroll = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
+	gtk_container_add(GTK_CONTAINER(scroll), wp->headerview);
+	gtk_paned_pack1(GTK_PANED(wp->panel), scroll, FALSE, FALSE);
+	gtk_box_pack_start(GTK_PANED(hdbox), wp->headerview, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_PANED(hdbox), bvbox, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(bvbox), wp->button_apply, FALSE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(bvbox), wp->button_revert, FALSE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new("Content:"), FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), wp->webview, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(vbox), wp->progress_bar, TRUE, FALSE, 0);
-	gtk_box_pack_end(GTK_BOX(vbox), buttonlayout, FALSE, FALSE, 0);
+	//gtk_paned_pack2(GTK_PANED(wp->panel), gtk_label_new("Content:"), FALSE, FALSE);
+	scroll = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
+	gtk_container_add(GTK_CONTAINER(scroll), wp->webview);
+	gtk_paned_pack2(GTK_PANED(wp->panel), scroll, TRUE, TRUE);
+	//gtk_paned_pack2(GTK_PANED(wp->panel), wp->progress_bar, TRUE, FALSE);
+	//gtk_paned_pack2(GTK_PANED(wp->panel), buttonlayout, FALSE, FALSE);
 	gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_default, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_with, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_export, FALSE, FALSE, 0);
 
-	gtk_box_pack_start(GTK_BOX(parent), vbox, TRUE, TRUE, 0);
 	return wp;
 }
 

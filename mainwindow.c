@@ -204,7 +204,8 @@ WemedWindow* wemed_window_create() {
 	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 3);
 
 
-	GtkWidget* hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	//GtkWidget* hpanel = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* hpanel = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);//gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
 
 	w->view = gtk_tree_view_new();
@@ -230,12 +231,17 @@ WemedWindow* wemed_window_create() {
 
 
 
-	gtk_box_pack_start(GTK_BOX(hbox), w->view, FALSE, FALSE, 0);
-	w->panel = wemed_panel_create(hbox);
+	//gtk_box_pack_start(GTK_BOX(hpanel), w->view, FALSE, FALSE, 0);
+	GtkWidget* treeviewwin = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(treeviewwin), GTK_SHADOW_IN);
+	gtk_container_add(GTK_CONTAINER(treeviewwin), w->view);
+	gtk_paned_add1(GTK_PANED(hpanel), treeviewwin);
+	w->panel = wemed_panel_create();
+	gtk_paned_add2(GTK_PANED(hpanel), wemed_panel_get_widget(w->panel));
 	wemed_panel_set_header_change_callback(w->panel, headers_changed, w);
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(tree_selection_changed_cb), w);
 	
-	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), hpanel, TRUE, TRUE, 0);
 
 	gtk_container_add(GTK_CONTAINER(w->rootwindow), vbox);
 
