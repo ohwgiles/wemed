@@ -145,6 +145,28 @@ gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, vo
 	return FALSE;
 }
 
+static GtkTreeIter iter_from_obj(MimeModel* m, GMimeObject* part) {
+	struct PartFinder p;
+	p.obj = part;
+	gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), find_part, &p);
+	printf("iter_from_obj: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &p.iter)));
+	return p.iter;
+}
+
+static GMimeObject* obj_from_iter(MimeModel* m, GtkTreeIter iter) {
+	GValue v = {0};
+	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &iter, 1, &v);
+	printf("obj_from_iter: %s\n", g_mime_content_type_to_string(g_mime_object_get_content_type(g_value_get_pointer(&v))));
+	return GMIME_OBJECT(g_value_get_pointer(&v));
+}
+
+static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
+	GtkTreeIter parent;
+	gtk_tree_model_iter_parent(GTK_TREE_MODEL(m->store), &parent, &child);
+	printf("parent_node: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &parent)));
+	return parent;
+}
+
 GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const char* new_header) {
 	//MimeModel* m = user_data;
 	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header, strlen(new_header));
@@ -181,19 +203,15 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 		}
 	}
 
-	struct PartFinder p;
-	p.obj = part_old;
-	gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), find_part, &p);
-	GtkTreeIter parent;
-	if(gtk_tree_model_iter_parent(GTK_TREE_MODEL(m->store), &parent, &p.iter) != TRUE)
-		return NULL;
-	GValue v = {0};
-	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &parent, 1, &v);
-	GMimeMultipart* multipart = (GMimeMultipart*) g_value_get_pointer(&v);
+
+	GtkTreeIter it = iter_from_obj(m, part_old);
+
+	GtkTreeIter parent = parent_node(m, it);
+	GMimeMultipart* multipart = GMIME_MULTIPART(obj_from_iter(m, parent));
 	int index = g_mime_multipart_index_of(multipart, part_old);
 	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
 	g_object_unref(part_old_);
-	add_part_to_store(m->store, &p.iter, part_new);
+	add_part_to_store(m->store, &it, part_new);
 	
 	//GMimeContentType* ct = g_mime_object_get_content_type(part_new);
 	//gtk_tree_store_set_value(m->store, &p.iter, 1, part_new);
@@ -213,6 +231,27 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 	//g_mime_part_iter_free(iter);
 	//mime_model_reparse(m);
 	return part_new;
+}
+
+GMimeObject* mime_model_new_part(MimeModel* m, GMimeObject* parent_or_sibling, const char* fromfile) {
+	printf("parent_or_sibling: %s\n", g_mime_content_type_to_string(g_mime_object_get_content_type(parent_or_sibling)));
+	GMimeMultipart* parent_part = NULL;
+	GtkTreeIter parent_iter;
+	GMimePart* new_part = g_mime_part_new();
+
+	if(GMIME_IS_MULTIPART(parent_or_sibling)) {
+		parent_iter = iter_from_obj(m, parent_or_sibling);
+		parent_part = parent_or_sibling;
+	} else {
+		parent_iter = parent_node(m, iter_from_obj(m, parent_or_sibling));
+		parent_part = obj_from_iter(m, parent_iter);
+	}
+
+	g_mime_multipart_add(parent_part, new_part);
+	GtkTreeIter result;
+	gtk_tree_store_append(m->store, &result, &parent_iter);
+	add_part_to_store(m->store, &result, new_part);
+	return new_part;
 }
 
 void mime_model_reparse(MimeModel* m) {

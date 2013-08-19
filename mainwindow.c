@@ -20,7 +20,22 @@ struct WemedWindow_S {
 	WemedPanel* panel;
 	char* filename;
 	gboolean dirty;
+
+	struct Application mime_app;
+	GtkWidget* menu_part_edit;
 };
+
+static GMimeObject* selected_object(GtkTreeSelection* sel) {
+	GtkTreeIter iter;
+	GtkTreeModel* model;
+	if(gtk_tree_selection_get_selected(sel, &model, &iter)) {
+		gpointer v;
+		gtk_tree_model_get(model, &iter, 1, &v, -1);
+		return GMIME_OBJECT(v);
+	}
+
+	return NULL;
+}
 
 void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
 	printf("selection changed!\n");
@@ -33,6 +48,19 @@ void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
 		gtk_tree_model_get(model, &iter, 1, &part, -1);
 		GMimeObject* obj = (GMimeObject*) part;
 		load_document_part(w->panel, obj);
+		free(w->mime_app.name);
+		free(w->mime_app.exec);
+		w->mime_app = get_default_mime_app(wemed_panel_current_content_type(w->panel));
+		if(w->mime_app.exec) {
+			const char* editwith = "_Edit with %s";
+			char* label = malloc(strlen(editwith) + strlen(w->mime_app.name));
+			sprintf(label, editwith, w->mime_app.name);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(w->menu_part_edit), label);
+			gtk_widget_set_sensitive(w->menu_part_edit, TRUE);
+		} else {
+			gtk_widget_set_sensitive(w->menu_part_edit, FALSE);
+
+		}
 	}
 
 }
@@ -108,13 +136,30 @@ void menu_open(GtkMenuItem* item, WemedWindow* w) {
 	gtk_widget_destroy (dialog);
 }
 
-void menu_new_blank(GtkMenuItem* item, WemedWindow* w) {
+void menu_file_new_blank(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; // unused
 	if(menu_close(NULL, w) == FALSE) return;
 	
 
 }
 
+static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
+	mime_model_new_part(w->model, selected_object(gtk_tree_view_get_selection(GTK_TREE_VIEW(w->view))), NULL);
+}
+static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
+}
+static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {
+	(void) item; //unused
+	wemed_open_part(w->panel, w->mime_app.exec);
+}
+static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
+	(void) item; //unused
+	const char* content_type_name = wemed_panel_current_content_type(w->panel);
+	printf("calling open_with on type %s\n", content_type_name);
+	char* exec = open_with(NULL, content_type_name);
+	if(!exec) return;
+	wemed_open_part(w->panel, exec);
+}
 
 GtkWidget* build_menubar(WemedWindow* w) {
 	GtkWidget* menubar = gtk_menu_bar_new();
@@ -129,7 +174,7 @@ GtkWidget* build_menubar(WemedWindow* w) {
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(new), newmenu);
 			{ // File -> New -> Blank Document
 			GtkWidget* blank = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
-			g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_new_blank), w);
+			g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_file_new_blank), w);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(blank), "_Blank Document");
 			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), blank);
 			}
@@ -170,6 +215,49 @@ GtkWidget* build_menubar(WemedWindow* w) {
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), quit);
 		}
 	gtk_menu_shell_append(GTK_MENU_SHELL(menubar), file);
+	}
+	{ // Part
+	GtkWidget* part = gtk_menu_item_new_with_mnemonic("_Part");
+	GtkWidget* partmenu = gtk_menu_new();
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(part), partmenu);
+		{ // Part -> New
+		GtkWidget* new = gtk_menu_item_new_with_mnemonic("_New");
+		GtkWidget* newmenu = gtk_menu_new();
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM(new), newmenu);
+			{ // Part -> New -> Multipart Node
+			GtkWidget* node = gtk_menu_item_new_with_mnemonic("_Multipart Node");
+			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), node);
+			}
+			{ // Part -> New -> Empty Part
+			GtkWidget* empty = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
+			g_signal_connect(G_OBJECT(empty), "activate", G_CALLBACK(menu_part_new_empty), w);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(empty), "_Empty Part");
+			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), empty);
+			}
+			{ // Part -> New -> From File
+			GtkWidget* fromfile = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
+			g_signal_connect(G_OBJECT(fromfile), "activate", G_CALLBACK(menu_part_new_from_file), w);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(fromfile), "From _File");
+			gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), fromfile);
+			}
+		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), new);
+		}
+		{ // Part -> Edit
+		w->menu_part_edit = gtk_image_menu_item_new_from_stock(GTK_STOCK_EDIT, NULL);
+		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), w->menu_part_edit);
+		g_signal_connect(G_OBJECT(w->menu_part_edit), "activate", G_CALLBACK(menu_part_edit), w);
+		}
+		{ // Part -> Edit with
+		GtkWidget* editwith = gtk_image_menu_item_new_from_stock(GTK_STOCK_EDIT, NULL);
+		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), editwith);
+		gtk_menu_item_set_label(GTK_MENU_ITEM(editwith), "Edit _With...");
+		g_signal_connect(G_OBJECT(editwith), "activate", G_CALLBACK(menu_part_edit_with), w);
+		}
+		{ // Part -> Export
+		}
+		{ // Part -> Delete
+		}
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar), part);
 	}
 
 	return menubar;

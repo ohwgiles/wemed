@@ -12,6 +12,8 @@ typedef struct WemedPanel_S WemedPanel;
 typedef GMimeObject* (*WemedPanelHeaderCallback)(void*, GMimeObject*, const char*);
 WemedPanel* wemed_panel_create();
 GtkWidget* wemed_panel_get_widget(WemedPanel* wp);
+void wemed_open_part(WemedPanel* wp, const char* app);
+const char* wemed_panel_current_content_type(WemedPanel* wp);
 void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash);
 void wemed_panel_set_header_change_callback(WemedPanel* wp, WemedPanelHeaderCallback, void*);
 void wemed_panel_clear(WemedPanel* wp);

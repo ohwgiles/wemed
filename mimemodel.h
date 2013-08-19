@@ -17,6 +17,7 @@ GHashTable* mime_model_get_cid_hash(MimeModel*);
 GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
 
 GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* new_header);
+GMimeObject* mime_model_new_part(MimeModel* m, GMimeObject* parent_or_sibling, const char* fromfile);
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename);
 void mime_model_reparse(MimeModel*);
 

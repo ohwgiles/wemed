@@ -36,6 +36,11 @@ GtkWidget* wemed_panel_get_widget(WemedPanel* wp) {
 	return wp->panel;
 }
 
+const char* wemed_panel_current_content_type(WemedPanel* wp) {
+	// todo handle none
+	return g_mime_content_type_to_string(g_mime_object_get_content_type(wp->current_obj));
+}
+
 gboolean load_failed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, gchar *failing_uri, gpointer error, gpointer user_data) {
 	(void) web_view; //unused
 	(void) load_event; //unused
@@ -193,45 +198,24 @@ static void write_part_to_file(GMimePart* part, FILE* fp) {
 	g_object_unref(filestream);
 }
 
-static void open_default_cb(GtkButton* button, WemedPanel* wp) {
-	(void) button; //unused
+void wemed_open_part(WemedPanel* wp, const char* app) {
 	char* tmpfile = strdup("wemed-tmpfile-XXXXXX");
 	int fd = mkstemp(tmpfile);
 	FILE* fp = fdopen(fd, "wb");
 	write_part_to_file(GMIME_PART(wp->current_obj), fp);
-	char* execpath = malloc(strlen(wp->last_exec_path) + strlen(tmpfile) + 2);
-	sprintf(execpath, "%s %s", wp->last_exec_path, tmpfile);
-	system(execpath);
-	free(execpath);
+	char* buffer = malloc(strlen(app) + strlen(tmpfile) + 5);
+	char* p = 0;
+	if( (p = strstr(app, "%f")) || (p = strstr(app, "%U")) || (p = strstr(app, "%s"))) {
+		p[1] = 's';
+		sprintf(buffer, app, tmpfile);
+	} else {
+		sprintf(buffer, "%s %s", app, tmpfile);
+	}
+	system(buffer);
+	free(buffer);
 	unlink(tmpfile); // be a tidy kiwi
 }
 
-static void open_with_cb(GtkButton* button, WemedPanel* wp) {
-	(void) button; //unused
-	const char* content_type_name = g_mime_content_type_to_string(g_mime_object_get_content_type(wp->current_obj));
-	char* exec = open_with(NULL, content_type_name);
-	if(!exec) return;
-
-	char* tmpfile = strdup("wemed-tmpfile-XXXXXX");
-	int fd = mkstemp(tmpfile);
-	FILE* fp = fdopen(fd, "wb");
-	write_part_to_file(GMIME_PART(wp->current_obj), fp);
-
-	char* buffer = malloc(strlen(tmpfile) + strlen(exec) + 5);
-	char* p;
-	if( (p = strstr(exec, "%f")) || (p = strstr(exec, "%U")) || (p = strstr(exec, "%s"))) {
-		p[1] = 's';
-		sprintf(buffer, exec, tmpfile);
-	} else {
-		sprintf(buffer, "%s %s", exec, tmpfile);
-	}
-
-	system(buffer);
-	free(buffer);
-	unlink(tmpfile);
-	free(exec);
-}
-		
 
 static void export_cb(GtkButton* button, WemedPanel* wp) {
 	(void) button; //unused
@@ -250,7 +234,8 @@ static void headers_changed_cb(GtkTextBuffer* text, WemedPanel* wp) {
 	gtk_widget_set_sensitive(wp->button_revert, TRUE);
 }
 
-static void headers_apply_cb(GtkButton* apply, WemedPanel* wp) {
+static gboolean headers_apply_cb(GtkButton* apply, GdkEvent* event, WemedPanel* wp) {
+	printf("headers_apply_cb\n");
 	if(wp->headers_changed) {
 		GtkTextIter start, end;
 		gtk_text_buffer_get_bounds(wp->headertext, &start, &end);
@@ -263,6 +248,7 @@ static void headers_apply_cb(GtkButton* apply, WemedPanel* wp) {
 			printf("failed to update header\n");
 		}
 	}
+	return FALSE;
 }
 
 void wemed_panel_clear(WemedPanel* wp) {
@@ -309,10 +295,13 @@ WemedPanel* wemed_panel_create() {
 	g_signal_connect(G_OBJECT(wp->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), wp);
 	g_signal_connect(G_OBJECT(wp->headertext), "changed", G_CALLBACK(headers_changed_cb), wp);
 	g_signal_connect(G_OBJECT(wp->button_apply), "clicked", G_CALLBACK(headers_apply_cb), wp);
+	g_signal_connect(G_OBJECT(wp->headerview), "focus-out-event", G_CALLBACK(headers_apply_cb), wp);
 	g_signal_connect(G_OBJECT(wp->panel), "show", G_CALLBACK(hide_progress_bar), wp->progress_bar);
+#if 0
 	g_signal_connect(G_OBJECT(wp->button_export), "clicked", G_CALLBACK(export_cb), wp);
 	g_signal_connect(G_OBJECT(wp->button_open_default), "clicked", G_CALLBACK(open_default_cb), wp);
 	g_signal_connect(G_OBJECT(wp->button_open_with), "clicked", G_CALLBACK(open_with_cb), wp);
+#endif
 
 
 	// layout
