@@ -149,7 +149,7 @@ static GtkTreeIter iter_from_obj(MimeModel* m, GMimeObject* part) {
 	struct PartFinder p;
 	p.obj = part;
 	gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), find_part, &p);
-	printf("iter_from_obj: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &p.iter)));
+	//printf("iter_from_obj: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &p.iter)));
 	return p.iter;
 }
 
@@ -163,7 +163,7 @@ static GMimeObject* obj_from_iter(MimeModel* m, GtkTreeIter iter) {
 static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 	GtkTreeIter parent;
 	gtk_tree_model_iter_parent(GTK_TREE_MODEL(m->store), &parent, &child);
-	printf("parent_node: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &parent)));
+	//printf("parent_node: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &parent)));
 	return parent;
 }
 
@@ -241,17 +241,17 @@ GMimeObject* mime_model_new_part(MimeModel* m, GMimeObject* parent_or_sibling, c
 
 	if(GMIME_IS_MULTIPART(parent_or_sibling)) {
 		parent_iter = iter_from_obj(m, parent_or_sibling);
-		parent_part = parent_or_sibling;
+		parent_part = GMIME_MULTIPART(parent_or_sibling);
 	} else {
 		parent_iter = parent_node(m, iter_from_obj(m, parent_or_sibling));
-		parent_part = obj_from_iter(m, parent_iter);
+		parent_part = GMIME_MULTIPART(obj_from_iter(m, parent_iter));
 	}
 
-	g_mime_multipart_add(parent_part, new_part);
+	g_mime_multipart_add(parent_part, GMIME_OBJECT(new_part));
 	GtkTreeIter result;
 	gtk_tree_store_append(m->store, &result, &parent_iter);
-	add_part_to_store(m->store, &result, new_part);
-	return new_part;
+	add_part_to_store(m->store, &result, GMIME_OBJECT(new_part));
+	return GMIME_OBJECT(new_part);
 }
 
 void mime_model_reparse(MimeModel* m) {

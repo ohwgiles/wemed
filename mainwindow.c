@@ -12,6 +12,7 @@
 #include "wemedpanel.h"
 #include "mimemodel.h"
 #include "mainwindow.h"
+#include "openwith.h"
 
 struct WemedWindow_S {
 	MimeModel* model;
@@ -121,7 +122,7 @@ void menu_open(GtkMenuItem* item, WemedWindow* w) {
 	if(menu_close(NULL, w) == FALSE) return;
 
 	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Open File",
-			w->rootwindow,
+			GTK_WINDOW(w->rootwindow),
 			GTK_FILE_CHOOSER_ACTION_OPEN,
 			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
@@ -264,9 +265,10 @@ GtkWidget* build_menubar(WemedWindow* w) {
 
 }
 
-void headers_changed(WemedWindow* w, GMimeObject* obj, const char* new_headers) {
+GMimeObject* headers_changed(void* userdata, GMimeObject* obj, const char* new_headers) {
+	WemedWindow* w = userdata;
 	w->dirty = TRUE;
-	mime_model_update_header(w->model, obj, new_headers);
+	return mime_model_update_header(w->model, obj, new_headers);
 }
 
 gboolean wemed_window_open(WemedWindow* w, const char* filename) {

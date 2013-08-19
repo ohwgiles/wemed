@@ -217,7 +217,7 @@ void wemed_open_part(WemedPanel* wp, const char* app) {
 }
 
 
-static void export_cb(GtkButton* button, WemedPanel* wp) {
+void wemed_export_part(GtkButton* button, WemedPanel* wp) {
 	(void) button; //unused
 	const char* file = "/tmp/testoutput";
 	FILE* fp = fopen(file, "wb");
@@ -272,6 +272,7 @@ WemedPanel* wemed_panel_create() {
 
 	// create and configure all our widgets
 	wp->panel = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
+#if 0
 		GtkWidget* hdbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 			wp->headerview = gtk_text_view_new();
 			wp->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(wp->headerview));
@@ -287,6 +288,7 @@ WemedPanel* wemed_panel_create() {
 			wp->button_export = gtk_button_new_with_label("Export segment");
 			wp->button_open_default = gtk_button_new_with_label("Open with default handler");
 			wp->button_open_with = gtk_button_new_with_label("Open with...");
+#endif
 
 	// connect everything
 
@@ -311,10 +313,10 @@ WemedPanel* wemed_panel_create() {
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(scroll), wp->headerview);
 	gtk_paned_pack1(GTK_PANED(wp->panel), scroll, FALSE, FALSE);
-	gtk_box_pack_start(GTK_PANED(hdbox), wp->headerview, TRUE, TRUE, 0);
-	gtk_box_pack_start(GTK_PANED(hdbox), bvbox, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(bvbox), wp->button_apply, FALSE, TRUE, 0);
-	gtk_box_pack_start(GTK_BOX(bvbox), wp->button_revert, FALSE, TRUE, 0);
+	//gtk_box_pack_start(GTK_PANED(hdbox), wp->headerview, TRUE, TRUE, 0);
+	//gtk_box_pack_start(GTK_PANED(hdbox), bvbox, FALSE, FALSE, 0);
+	//gtk_box_pack_start(GTK_BOX(bvbox), wp->button_apply, FALSE, TRUE, 0);
+	//gtk_box_pack_start(GTK_BOX(bvbox), wp->button_revert, FALSE, TRUE, 0);
 	//gtk_paned_pack2(GTK_PANED(wp->panel), gtk_label_new("Content:"), FALSE, FALSE);
 	scroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
@@ -322,9 +324,9 @@ WemedPanel* wemed_panel_create() {
 	gtk_paned_pack2(GTK_PANED(wp->panel), scroll, TRUE, TRUE);
 	//gtk_paned_pack2(GTK_PANED(wp->panel), wp->progress_bar, TRUE, FALSE);
 	//gtk_paned_pack2(GTK_PANED(wp->panel), buttonlayout, FALSE, FALSE);
-	gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_default, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_with, FALSE, FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_export, FALSE, FALSE, 0);
+	//gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_default, FALSE, FALSE, 0);
+	//gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_with, FALSE, FALSE, 0);
+	//gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_export, FALSE, FALSE, 0);
 
 	return wp;
 }
