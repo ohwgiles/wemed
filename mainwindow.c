@@ -18,9 +18,10 @@ struct WemedWindow_S {
 	MimeModel* model;
 	GtkWidget* rootwindow;
 	GtkWidget* view;
-	WemedPanel* panel;
+	GtkWidget* panel;
 	char* filename;
 	gboolean dirty;
+	GMimeObject* current_part;
 
 	struct Application mime_app;
 	GtkWidget* menu_part_edit;
@@ -48,10 +49,11 @@ void tree_selection_changed_cb(GtkTreeSelection* selection, gpointer data) {
 	if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
 		gtk_tree_model_get(model, &iter, 1, &part, -1);
 		GMimeObject* obj = (GMimeObject*) part;
-		load_document_part(w->panel, obj);
+		w->current_part = obj;
+		load_document_part(WEMED_PANEL(w->panel), obj);
 		free(w->mime_app.name);
 		free(w->mime_app.exec);
-		w->mime_app = get_default_mime_app(wemed_panel_current_content_type(w->panel));
+		w->mime_app = get_default_mime_app(mime_model_content_type(w->current_part));
 		if(w->mime_app.exec) {
 			const char* editwith = "_Edit with %s";
 			char* label = malloc(strlen(editwith) + strlen(w->mime_app.name));
@@ -112,7 +114,7 @@ gboolean menu_close(GtkMenuItem* item, WemedWindow* w) {
 	}
 	mime_model_free(w->model);
 	w->model = 0;
-	wemed_panel_clear(w->panel);
+	wemed_panel_clear(WEMED_PANEL(w->panel));
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->view), NULL);
 	return TRUE;
 }
@@ -149,17 +151,36 @@ static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
 }
 static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 }
+static void open_part_with_external_app(GMimePart* part, const char* app) {
+	char* tmpfile = strdup("wemed-tmpfile-XXXXXX");
+	int fd = mkstemp(tmpfile);
+	FILE* fp = fdopen(fd, "wb");
+	mime_model_write_part(part, fp);
+	char* buffer = malloc(strlen(app) + strlen(tmpfile) + 5);
+	char* p = 0;
+	if( (p = strstr(app, "%f")) || (p = strstr(app, "%U")) || (p = strstr(app, "%s"))) {
+		p[1] = 's';
+		sprintf(buffer, app, tmpfile);
+	} else {
+		sprintf(buffer, "%s %s", app, tmpfile);
+	}
+	system(buffer);
+	free(buffer);
+	unlink(tmpfile); // be a tidy kiwi
+}
 static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; //unused
-	wemed_open_part(w->panel, w->mime_app.exec);
+	//wemed_open_part(WEMED_PANEL(w->panel), w->mime_app.exec);
+	open_part_with_external_app(GMIME_PART(w->current_part), w->mime_app.exec);
 }
 static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; //unused
-	const char* content_type_name = wemed_panel_current_content_type(w->panel);
+	const char* content_type_name = mime_model_content_type(w->current_part);
 	printf("calling open_with on type %s\n", content_type_name);
 	char* exec = open_with(NULL, content_type_name);
 	if(!exec) return;
-	wemed_open_part(w->panel, exec);
+	//wemed_open_part(WEMED_PANEL(w->panel), exec);
+	open_part_with_external_app(GMIME_PART(w->current_part), exec);
 }
 
 GtkWidget* build_menubar(WemedWindow* w) {
@@ -265,22 +286,28 @@ GtkWidget* build_menubar(WemedWindow* w) {
 
 }
 
-GMimeObject* headers_changed(void* userdata, GMimeObject* obj, const char* new_headers) {
-	WemedWindow* w = userdata;
-	w->dirty = TRUE;
-	return mime_model_update_header(w->model, obj, new_headers);
-}
 
 gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 	// todo close old model
 	MimeModel* m = mime_model_create_from_file(filename);
 	if(!m) return FALSE;
-	wemed_panel_set_cid_table(w->panel, mime_model_get_cid_hash(m));
+	wemed_panel_set_cid_table(WEMED_PANEL(w->panel), mime_model_get_cid_hash(m));
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->view), mime_model_get_gtk_model(m));
 	
 	w->model = m;
 	w->filename = strdup(filename);
 	return TRUE;
+}
+
+void headers_modified(GObject* emitter, gchar* headers, gpointer userdata) {
+	WemedWindow* w = userdata;
+	printf("w=%p\n",w);
+	GMimeObject* new_part = mime_model_update_header(w->model, w->current_part, headers);
+	if(new_part) {
+		w->dirty = TRUE;
+		w->current_part = new_part;
+		load_document_part(WEMED_PANEL(w->panel), new_part);
+	}
 }
 
 WemedWindow* wemed_window_create() {
@@ -326,9 +353,12 @@ WemedWindow* wemed_window_create() {
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(treeviewwin), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(treeviewwin), w->view);
 	gtk_paned_add1(GTK_PANED(hpanel), treeviewwin);
-	w->panel = wemed_panel_create();
-	gtk_paned_add2(GTK_PANED(hpanel), wemed_panel_get_widget(w->panel));
-	wemed_panel_set_header_change_callback(w->panel, headers_changed, w);
+	w->panel = wemed_panel_new(); //wemed_panel_create();
+	gtk_paned_add2(GTK_PANED(hpanel), w->panel);
+	//wemed_panel_set_header_change_callback(WEMED_PANEL(w->panel), headers_changed, w);
+	printf("w=%p\n",w);
+	g_signal_connect(G_OBJECT(w->panel), "headers-changed", G_CALLBACK(headers_modified), w);
+
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(tree_selection_changed_cb), w);
 	
 	gtk_box_pack_start(GTK_BOX(vbox), hpanel, TRUE, TRUE, 0);

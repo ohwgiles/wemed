@@ -38,6 +38,10 @@ struct TreeInsertHelper {
 GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
+const char* mime_model_content_type(GMimeObject* obj) {
+	return g_mime_content_type_to_string(g_mime_object_get_content_type(obj));
+}
+
 static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObject* part) {
 	// icon
 	GtkIconTheme* git = gtk_icon_theme_get_default();
@@ -304,6 +308,17 @@ gboolean write_parts_to_stream(GtkTreeModel* model, GtkTreePath* path, GtkTreeIt
 	g_mime_stream_flush(stream);
 	g_value_unset(&v);
 	return FALSE;
+}
+
+void mime_model_write_part(GMimePart* part, FILE* fp) {
+	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
+	GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
+	GMimeStream* stream_filter = g_mime_stream_filter_new(gms);
+	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), basic_filter);
+	GMimeStream* filestream = g_mime_stream_file_new(fp);
+	g_mime_stream_write_to_stream(stream_filter, filestream);
+	g_mime_stream_reset(gms);
+	g_object_unref(filestream);
 }
 
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {

@@ -13,33 +13,59 @@
 #include "wemedpanel.h"
 #include "openwith.h"
 
-struct WemedPanel_S {
-	GtkWidget* panel;
+G_DEFINE_TYPE(WemedPanel, wemed_panel, GTK_TYPE_PANED);
+#define GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), wemed_panel_get_type(), WemedPanelPrivate))
+
+enum {
+	WEMED_PANEL_SAVE_HEADER,
+	WEMED_PANEL_LAST_SIGNAL
+};
+
+static gint wemed_panel_signals[WEMED_PANEL_LAST_SIGNAL] = {0};
+
+
+typedef struct {
 	GtkWidget* webview;
 	GtkWidget* headerview;
 	GtkTextBuffer* headertext;
-	WemedPanelHeaderCallback headers_changed;
 	WebKitWebContext* ctx;
-	void* headers_changed_userdata;
-	GMimeObject* current_obj;
 	GtkWidget* progress_bar;
-	GtkWidget* button_export;
-	GtkWidget* button_open_default;
-	GtkWidget* button_open_with;
-	GtkWidget* button_apply;
-	GtkWidget* button_revert;
-	char* last_exec_path;
-};
-
-
-GtkWidget* wemed_panel_get_widget(WemedPanel* wp) {
-	return wp->panel;
+} WemedPanelPrivate;
+static void wemed_panel_class_init(WemedPanelClass* klass) {
+	printf("class_init\n");
+	g_type_class_add_private(klass, sizeof(WemedPanelPrivate));
+	GObjectClass* obj = (GObjectClass*) klass;
+	wemed_panel_signals[WEMED_PANEL_SAVE_HEADER] = g_signal_new(
+			"headers-changed",
+			G_TYPE_FROM_CLASS (obj),
+			G_SIGNAL_RUN_FIRST,
+			0, // v-table offset
+			NULL,
+			NULL,
+			NULL, //marshaller
+			G_TYPE_NONE, // return tye
+			1, G_TYPE_STRING); //num args
+	//g_object_class_add_signals(obj, wemed_panel_signals, WEMED_PANEL_LAST_SIGNAL);
+	klass->headers_changed = 0;
 }
 
-const char* wemed_panel_current_content_type(WemedPanel* wp) {
+GtkWidget* wemed_panel_new() {
+	return g_object_new(wemed_panel_get_type(), NULL);//GTK_WIDGET(gtk_type_new(wemed_panel_get_type()));
+}
+
+#if 0
+GtkWidget* wemed_panel_get_widget(WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
+	return paned;
+}
+
+const char* wemed_panel_current_content_type(WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
+
 	// todo handle none
 	return g_mime_content_type_to_string(g_mime_object_get_content_type(wp->current_obj));
 }
+#endif
 
 gboolean load_failed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, gchar *failing_uri, gpointer error, gpointer user_data) {
 	(void) web_view; //unused
@@ -49,14 +75,11 @@ gboolean load_failed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, gch
 	return FALSE;
 }
 
-void wemed_panel_set_header_change_callback(WemedPanel* wp, WemedPanelHeaderCallback cb, void* ud) {
-	wp->headers_changed = cb;
-	wp->headers_changed_userdata = ud;
-}
 
-void load_document_part(WemedPanel* wp, GMimeObject* obj) {
-	wemed_panel_clear(wp);
-	wp->current_obj = obj;
+void load_document_part(WemedPanel* _wp, GMimeObject* obj) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
+	wemed_panel_clear(_wp);
+//	wp->current_obj = obj;
 
 //	webkit_web_context_clear_cache(ctx);
 	//webkit_web_view_load_plain_text(wp->webview, "");
@@ -79,7 +102,7 @@ void load_document_part(WemedPanel* wp, GMimeObject* obj) {
 		printf("selected type name: %s\n", content_type_name);
 		struct Application app = get_default_mime_app(content_type_name);
 			printf("app name %s, path %s\n", app.name, app.exec);
-
+#if 0
 		if(app.name) {
 			char* new_button_label = malloc(strlen(app.name) + strlen("Open with ") + 1);
 			sprintf(new_button_label, "Open with %s", app.name);
@@ -92,6 +115,7 @@ void load_document_part(WemedPanel* wp, GMimeObject* obj) {
 		} else {
 			gtk_widget_hide(wp->button_open_default);
 		}
+#endif
 
 
 		if(strcmp(content_type_name, "text/html") == 0) {
@@ -162,10 +186,12 @@ void cid_loading_cb(WebKitURISchemeRequest* request, gpointer user_data) {
 	}
 }
 
-void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash) {
+void wemed_panel_set_cid_table(WemedPanel* _wp, GHashTable* hash) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
 	webkit_web_context_register_uri_scheme(wp->ctx, "cid", cid_loading_cb, hash, NULL);
 }
-void load_changed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, WemedPanel* wp) {
+void load_changed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
 	(void) web_view; //unused
 	switch(load_event) {
 	case WEBKIT_LOAD_STARTED:
@@ -181,12 +207,14 @@ void load_changed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, WemedP
 	}
 }
 
-void progress_changed_cb(WebKitWebView* web_view, GParamSpec* pspec, WemedPanel* wp) {
+void progress_changed_cb(WebKitWebView* web_view, GParamSpec* pspec, WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
 	(void) pspec; //unused
 	double p = webkit_web_view_get_estimated_load_progress(web_view);
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(wp->progress_bar), p);
 }
 
+#if 0
 static void write_part_to_file(GMimePart* part, FILE* fp) {
 	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
 	GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
@@ -198,7 +226,8 @@ static void write_part_to_file(GMimePart* part, FILE* fp) {
 	g_object_unref(filestream);
 }
 
-void wemed_open_part(WemedPanel* wp, const char* app) {
+void wemed_open_part(WemedPanel* _wp, const char* app) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
 	char* tmpfile = strdup("wemed-tmpfile-XXXXXX");
 	int fd = mkstemp(tmpfile);
 	FILE* fp = fdopen(fd, "wb");
@@ -217,24 +246,33 @@ void wemed_open_part(WemedPanel* wp, const char* app) {
 }
 
 
-void wemed_export_part(GtkButton* button, WemedPanel* wp) {
+void wemed_export_part(GtkButton* button, WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
 	(void) button; //unused
 	const char* file = "/tmp/testoutput";
 	FILE* fp = fopen(file, "wb");
 	write_part_to_file(GMIME_PART(wp->current_obj), fp);
 }
+#endif
 
 static void hide_progress_bar(GtkWidget* container, GtkWidget* bar) {
 	(void) container;
 	gtk_widget_hide(bar);
 }
 
-static void headers_changed_cb(GtkTextBuffer* text, WemedPanel* wp) {
-	gtk_widget_set_sensitive(wp->button_apply, TRUE);
-	gtk_widget_set_sensitive(wp->button_revert, TRUE);
+static gboolean headers_updated_cb(GtkWidget* headerview, GdkEvent* event, WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
+		GtkTextIter start, end;
+		gtk_text_buffer_get_bounds(wp->headertext, &start, &end);
+		gchar* new_header = gtk_text_buffer_get_text(wp->headertext, &start, &end, TRUE);
+	g_signal_emit(_wp, wemed_panel_signals[WEMED_PANEL_SAVE_HEADER], 0, new_header);
+	return FALSE;
 }
 
-static gboolean headers_apply_cb(GtkButton* apply, GdkEvent* event, WemedPanel* wp) {
+
+#if 0
+static gboolean headers_apply_cb(GtkButton* apply, GdkEvent* event, WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
 	printf("headers_apply_cb\n");
 	if(wp->headers_changed) {
 		GtkTextIter start, end;
@@ -242,7 +280,7 @@ static gboolean headers_apply_cb(GtkButton* apply, GdkEvent* event, WemedPanel* 
 		gchar* new_header = gtk_text_buffer_get_text(wp->headertext, &start, &end, TRUE);
 		GMimeObject* new_part = (*wp->headers_changed)(wp->headers_changed_userdata, wp->current_obj, new_header);
 		if(new_part) {
-			load_document_part(wp, new_part);
+			load_document_part(_wp, new_part);
 			printf("header successfully updated\n");
 		} else {
 			printf("failed to update header\n");
@@ -250,8 +288,10 @@ static gboolean headers_apply_cb(GtkButton* apply, GdkEvent* event, WemedPanel* 
 	}
 	return FALSE;
 }
+#endif
 
-void wemed_panel_clear(WemedPanel* wp) {
+void wemed_panel_clear(WemedPanel* _wp) {
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
 	webkit_web_view_stop_loading(WEBKIT_WEB_VIEW(wp->webview));
 	gtk_widget_hide(wp->webview);
 	GtkTextIter start, end;
@@ -261,29 +301,37 @@ void wemed_panel_clear(WemedPanel* wp) {
 	gtk_widget_set_sensitive(wp->headerview, FALSE);
 }
 
-WemedPanel* wemed_panel_create() {
-	// create and initialise our data structure
-	WemedPanel* wp = (WemedPanel*) malloc(sizeof(WemedPanel));
-	wp->last_exec_path = 0;
 
+
+static void wemed_panel_init(WemedPanel* _wp) {
+	printf("wemed_panel_init\n");
+	WemedPanelPrivate* wp = GET_PRIVATE(_wp);
+	//wp->last_exec_path = 0;
+
+	GtkPaned* paned = GTK_PANED(_wp);
+	gtk_orientable_set_orientation (GTK_ORIENTABLE (paned),
+			                                  GTK_ORIENTATION_VERTICAL);
+	//paned = paned;
+	//printf("wp=%p,cont=%p\n", wp,cont);
 	// configure the webkit context
 	wp->ctx = webkit_web_context_get_default();
 	webkit_web_context_set_cache_model(wp->ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
 
 	// create and configure all our widgets
-	wp->panel = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
-#if 0
-		GtkWidget* hdbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	//paned = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
 			wp->headerview = gtk_text_view_new();
 			wp->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(wp->headerview));
+#if 0
 			GtkWidget* bvbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 				wp->button_apply = gtk_button_new_with_label("Apply");
 				gtk_widget_set_sensitive(wp->button_apply, FALSE);
 				wp->button_revert = gtk_button_new_with_label("Revert");
 				gtk_widget_set_sensitive(wp->button_revert, FALSE);
+#endif
 		wp->webview = webkit_web_view_new();
 		wp->progress_bar = gtk_progress_bar_new();
 		gtk_progress_bar_set_text(GTK_PROGRESS_BAR(wp->progress_bar), "Loading");
+#if 0
 		GtkWidget* buttonlayout = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 			wp->button_export = gtk_button_new_with_label("Export segment");
 			wp->button_open_default = gtk_button_new_with_label("Open with default handler");
@@ -293,12 +341,12 @@ WemedPanel* wemed_panel_create() {
 	// connect everything
 
 	g_signal_connect(G_OBJECT(wp->webview), "load-failed", G_CALLBACK(load_failed_cb), NULL);
-	g_signal_connect(G_OBJECT(wp->webview), "load-changed", G_CALLBACK(load_changed_cb), wp);
-	g_signal_connect(G_OBJECT(wp->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), wp);
-	g_signal_connect(G_OBJECT(wp->headertext), "changed", G_CALLBACK(headers_changed_cb), wp);
-	g_signal_connect(G_OBJECT(wp->button_apply), "clicked", G_CALLBACK(headers_apply_cb), wp);
-	g_signal_connect(G_OBJECT(wp->headerview), "focus-out-event", G_CALLBACK(headers_apply_cb), wp);
-	g_signal_connect(G_OBJECT(wp->panel), "show", G_CALLBACK(hide_progress_bar), wp->progress_bar);
+	g_signal_connect(G_OBJECT(wp->webview), "load-changed", G_CALLBACK(load_changed_cb), _wp);
+	g_signal_connect(G_OBJECT(wp->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), _wp);
+	//g_signal_connect(G_OBJECT(wp->headertext), "changed", G_CALLBACK(headers_changed_cb), _wp);
+	//g_signal_connect(G_OBJECT(wp->button_apply), "clicked", G_CALLBACK(headers_apply_cb), wp);
+	g_signal_connect(G_OBJECT(wp->headerview), "focus-out-event", G_CALLBACK(headers_updated_cb), _wp);
+	g_signal_connect(G_OBJECT(paned), "show", G_CALLBACK(hide_progress_bar), wp->progress_bar);
 #if 0
 	g_signal_connect(G_OBJECT(wp->button_export), "clicked", G_CALLBACK(export_cb), wp);
 	g_signal_connect(G_OBJECT(wp->button_open_default), "clicked", G_CALLBACK(open_default_cb), wp);
@@ -307,31 +355,30 @@ WemedPanel* wemed_panel_create() {
 
 
 	// layout
-	//gtk_paned_pack1(GTK_PANED(wp->panel), gtk_label_new("Headers:"), FALSE, FALSE);
+	//gtk_paned_pack1(GTK_PANED(paned), gtk_label_new("Headers:"), FALSE, FALSE);
 	
 	GtkWidget* scroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(scroll), wp->headerview);
-	gtk_paned_pack1(GTK_PANED(wp->panel), scroll, FALSE, FALSE);
+	gtk_paned_pack1(GTK_PANED(paned), scroll, FALSE, FALSE);
 	//gtk_box_pack_start(GTK_PANED(hdbox), wp->headerview, TRUE, TRUE, 0);
 	//gtk_box_pack_start(GTK_PANED(hdbox), bvbox, FALSE, FALSE, 0);
 	//gtk_box_pack_start(GTK_BOX(bvbox), wp->button_apply, FALSE, TRUE, 0);
 	//gtk_box_pack_start(GTK_BOX(bvbox), wp->button_revert, FALSE, TRUE, 0);
-	//gtk_paned_pack2(GTK_PANED(wp->panel), gtk_label_new("Content:"), FALSE, FALSE);
+	//gtk_paned_pack2(GTK_PANED(paned), gtk_label_new("Content:"), FALSE, FALSE);
 	scroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(scroll), wp->webview);
-	gtk_paned_pack2(GTK_PANED(wp->panel), scroll, TRUE, TRUE);
-	//gtk_paned_pack2(GTK_PANED(wp->panel), wp->progress_bar, TRUE, FALSE);
-	//gtk_paned_pack2(GTK_PANED(wp->panel), buttonlayout, FALSE, FALSE);
+	gtk_paned_pack2(GTK_PANED(paned), scroll, TRUE, TRUE);
+	//gtk_paned_pack2(GTK_PANED(paned), wp->progress_bar, TRUE, FALSE);
+	//gtk_paned_pack2(GTK_PANED(paned), buttonlayout, FALSE, FALSE);
 	//gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_default, FALSE, FALSE, 0);
 	//gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_open_with, FALSE, FALSE, 0);
 	//gtk_box_pack_start(GTK_BOX(buttonlayout), wp->button_export, FALSE, FALSE, 0);
 
-	return wp;
+//	gtk_container_add(cont, paned);
+	printf("left _init\n");
 }
-
-
 
 
 
