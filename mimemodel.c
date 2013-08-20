@@ -2,7 +2,7 @@
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
- #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <gtk/gtk.h>
@@ -51,7 +51,7 @@ static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObjec
 	for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
 	GdkPixbuf* icon = gtk_icon_theme_load_icon(git, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 	free(icon_name);
-	
+
 	// add to tree
 	gtk_tree_store_set(store, iter, 0, g_mime_content_type_to_string(ct), 1, part, 2, icon, -1);
 	g_object_unref(icon);
@@ -94,19 +94,19 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 		add_part_to_store(h->m->store, &h->child, part);
 		if(cid) {
 			/*
-			GMimeDataWrapper* gdw = g_mime_part_get_content_object(part);
-			GMimeStream* gms = g_mime_data_wrapper_get_stream(gdw);
-			gint64 l = g_mime_stream_length(gms);
-			struct Buffer* b = (struct Buffer*) malloc(sizeof(struct Buffer)+l);
+			   GMimeDataWrapper* gdw = g_mime_part_get_content_object(part);
+			   GMimeStream* gms = g_mime_data_wrapper_get_stream(gdw);
+			   gint64 l = g_mime_stream_length(gms);
+			   struct Buffer* b = (struct Buffer*) malloc(sizeof(struct Buffer)+l);
 			//char* b = malloc(l);
 			b->len = l;
 			g_mime_stream_read(gms, b->data, l);
 			//GMimeContentType* ct = g_mime_object_get_content_type(part);
 
 			//WebKitWebResource* wr = webkit_web_resource_new(b, l, cid, g_mime_content_type_to_string(ct), g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part)), NULL);
-			*/
+			 */
 			g_hash_table_insert(h->m->cidhash, strdup(cid), part);
-//			printf("added %s at %p\n",cid, b);
+			//			printf("added %s at %p\n",cid, b);
 		}
 	} else {
 		printf("unknown type\n");
@@ -122,7 +122,7 @@ gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpo
 	if(GMIME_IS_PART(part)) {
 		const char* disposition = g_mime_object_get_disposition(part);
 		if(disposition && strcmp(disposition, "inline") == 0) return FALSE;
-//		printf("found section with disposition %s\n", disposition);
+		//		printf("found section with disposition %s\n", disposition);
 	}
 	return TRUE;
 }
@@ -216,7 +216,7 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
 	g_object_unref(part_old_);
 	add_part_to_store(m->store, &it, part_new);
-	
+
 	//GMimeContentType* ct = g_mime_object_get_content_type(part_new);
 	//gtk_tree_store_set_value(m->store, &p.iter, 1, part_new);
 	//gtk_tree_store_set(m->store, &p.iter, 0, g_mime_content_type_to_string(ct), 1, part_new, -1);
@@ -270,14 +270,14 @@ void mime_model_reparse(MimeModel* m) {
 
 MimeModel* mime_model_create_from_file(const char* filename) {
 	MimeModel* m = malloc(sizeof(MimeModel));
-	
+
 	m->store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_POINTER, GDK_TYPE_PIXBUF);
 	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
 	m->name = index(filename, '/') ? strdup(strrchr(filename, '/')) : strdup(filename);
 
 	FILE* fp = fopen(filename, "rb");
 	if(!fp) return NULL;
-	
+
 	GMimeStream* gfs = g_mime_stream_file_new(fp);
 	if(!gfs) return NULL;
 
@@ -324,7 +324,7 @@ void mime_model_write_part(GMimePart* part, FILE* fp) {
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	FILE* fp = fopen(filename, "wb");
 	if(!fp) return FALSE;
-	
+
 	GMimeStream* gfs = g_mime_stream_file_new(fp);
 	if(!gfs) return FALSE;
 	GtkTreeIter first;
@@ -343,12 +343,12 @@ gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 
 void mime_model_free(MimeModel* m) {
 	if(m) {
-	g_object_unref(m->store);
-	g_hash_table_unref(m->cidhash);
-	free(m->name);
-	g_object_unref(m->message);
-	//todo delete the filter
-	free(m);
+		g_object_unref(m->store);
+		g_hash_table_unref(m->cidhash);
+		free(m->name);
+		g_object_unref(m->message);
+		//todo delete the filter
+		free(m);
 	}
 }
 
