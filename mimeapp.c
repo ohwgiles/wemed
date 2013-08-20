@@ -32,9 +32,7 @@ struct Application get_default_mime_app(const char* mimetype) {
 		_exit(0);
 	}
 	waitpid(pid, 0, 0);
-	printf("preread\n");
 	n = read(pipes[0], buffer, 63);
-	printf("postread: %d\n", n);
 	if(n < 0) return a;
 	buffer[n] = '\0';
 	*strchrnul(buffer, ';') = '\0';
