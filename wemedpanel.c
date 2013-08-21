@@ -6,7 +6,7 @@
 
 #include <gtk/gtk.h>
 #include <stdlib.h>
-#include <webkit2/webkit2.h>
+#include <webkit/webkit.h>
 #include <gmime/gmime.h>
 #include <string.h>
 #include "mimeapp.h"
@@ -19,6 +19,7 @@ G_DEFINE_TYPE(WemedPanel, wemed_panel, GTK_TYPE_PANED);
 // signals
 enum {
 	WP_SIG_HEADERS,
+	WP_SIG_GET_CID,
 	WP_SIG_LAST
 };
 
@@ -29,10 +30,10 @@ typedef struct {
 	GtkWidget* webview;
 	GtkWidget* headerview;
 	GtkTextBuffer* headertext;
-	WebKitWebContext* ctx;
+	//WebKitWebContext* ctx;
 	GtkWidget* progress_bar;
 } WemedPanelPrivate;
-
+#if 0
 static gboolean load_failed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, gchar *failing_uri, gpointer error, gpointer user_data) {
 	(void) web_view; //unused
 	(void) load_event; //unused
@@ -40,7 +41,6 @@ static gboolean load_failed_cb(WebKitWebView *web_view, WebKitLoadEvent load_eve
 	printf("loading %s failed: %s\n", failing_uri, ((GError*)error)->message);
 	return FALSE;
 }
-
 static void cid_loading_cb(WebKitURISchemeRequest* request, gpointer user_data) {
 	GHashTable* hash = (GHashTable*) user_data;
 	const gchar* path = webkit_uri_scheme_request_get_path(request);
@@ -67,12 +67,18 @@ static void cid_loading_cb(WebKitURISchemeRequest* request, gpointer user_data) 
 		printf("could not find %s in hash\n", path);
 	}
 }
+#endif
 
-static void load_changed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, WemedPanel* wp) {
-	GET_D(wp);
+//static void load_changed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event, WemedPanel* wp) {
+static void load_changed_cb(WebKitWebView *web_view, WebKitLoadStatus status, WemedPanel* wp) {
+
+	//GET_D(wp);
+	return;
+#if 0
+	printf("load_changed_cb\n");
 	(void) web_view; //unused
-	switch(load_event) {
-		case WEBKIT_LOAD_STARTED:
+	switch(status) {
+		case WEBKIT_LOAD_PROVISIONAL:
 			gtk_widget_hide(d->webview);
 			gtk_widget_show(d->progress_bar);
 			break;
@@ -80,16 +86,23 @@ static void load_changed_cb(WebKitWebView *web_view, WebKitLoadEvent load_event,
 			gtk_widget_hide(d->progress_bar);
 			gtk_widget_show(d->webview);
 			break;
+		case WEBKIT_LOAD_FAILED:
+			printf("failed...\n");
+			break;
 		default:
 			break;
 	}
+#endif
 }
 
-static void progress_changed_cb(WebKitWebView* web_view, GParamSpec* pspec, WemedPanel* wp) {
-	GET_D(wp);
-	(void) pspec; //unused
-	double p = webkit_web_view_get_estimated_load_progress(web_view);
-	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(d->progress_bar), p);
+static void progress_changed_cb(GObject* web_view, GdkEvent* e, WemedPanel* wp) {
+	//GET_D(wp);
+	gdouble p;
+	g_object_get(web_view, "progress", &p, NULL);
+	printf("progress_changed_cb: %f\n", p);
+	//(void) pspec; //unused
+	//double p = webkit_web_view_get_estimated_load_progress(web_view);
+	//gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(d->progress_bar), p);
 }
 
 static void hide_progress_bar(GtkWidget* container, GtkWidget* bar) {
@@ -105,6 +118,19 @@ static gboolean headers_updated_cb(GtkWidget* headerview, GdkEvent* event, Wemed
 	g_signal_emit(wp, wemed_panel_signals[WP_SIG_HEADERS], 0, new_header);
 	return FALSE;
 }
+static void resource_request_starting_cb(WebKitWebView *web_view, WebKitWebFrame *web_frame, WebKitWebResource *web_resource, WebKitNetworkRequest *request, WebKitNetworkResponse *response, WemedPanel* wp) {
+	GET_D(wp);
+	// todo optionally disable external links
+	const char* uri = webkit_network_request_get_uri(request);
+	if(strncmp(uri, "cid:", 4) == 0) {
+		char* image_data = 0;
+		g_signal_emit(wp, wemed_panel_signals[WP_SIG_GET_CID], 0, &uri[4], &image_data);
+		webkit_network_request_set_uri(request, image_data);
+		free(image_data);
+	} else {
+		//webkit_network_request_set_uri(request, "about:blank");
+	}
+}
 
 static void wemed_panel_init(WemedPanel* wp) {
 	GET_D(wp);
@@ -113,20 +139,24 @@ static void wemed_panel_init(WemedPanel* wp) {
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (paned), GTK_ORIENTATION_VERTICAL);
 
 	// configure the webkit context
-	d->ctx = webkit_web_context_get_default();
-	webkit_web_context_set_cache_model(d->ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
+	//d->ctx = webkit_web_context_get_default();
+	//webkit_web_context_set_cache_model(d->ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
+	//webkit_set_cache_model(WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER); // put in main
 
 	// create and configure all our widgets
 	d->headerview = gtk_text_view_new();
 	d->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(d->headerview));
 	d->webview = webkit_web_view_new();
+	//webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), "http://www.gnome.org");
+	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
 	d->progress_bar = gtk_progress_bar_new();
 	gtk_progress_bar_set_text(GTK_PROGRESS_BAR(d->progress_bar), "Loading");
 
 	// connect everything
-	g_signal_connect(G_OBJECT(d->webview), "load-failed", G_CALLBACK(load_failed_cb), NULL);
-	g_signal_connect(G_OBJECT(d->webview), "load-changed", G_CALLBACK(load_changed_cb), wp);
-	g_signal_connect(G_OBJECT(d->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), wp);
+	//g_signal_connect(G_OBJECT(d->webview), "load-failed", G_CALLBACK(load_failed_cb), NULL);
+	//g_signal_connect(G_OBJECT(d->webview), "notify::load-status", G_CALLBACK(load_changed_cb), wp);
+	g_signal_connect(G_OBJECT(d->webview), "notify::progress", G_CALLBACK(progress_changed_cb), wp);
+	g_signal_connect(G_OBJECT(d->webview), "resource-request-starting", G_CALLBACK(resource_request_starting_cb), wp);
 	g_signal_connect(G_OBJECT(d->headerview), "focus-out-event", G_CALLBACK(headers_updated_cb), wp);
 	g_signal_connect(G_OBJECT(paned), "show", G_CALLBACK(hide_progress_bar), d->progress_bar);
 
@@ -153,6 +183,17 @@ static void wemed_panel_class_init(WemedPanelClass* class) {
 			NULL,
 			NULL, //marshaller
 			G_TYPE_NONE, // return tye
+			1, // num args
+			G_TYPE_STRING); // arg types
+	wemed_panel_signals[WP_SIG_GET_CID] = g_signal_new(
+			"cid-requested",
+			G_TYPE_FROM_CLASS ((GObjectClass*)class),
+			G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+			0, // v-table offset
+			NULL,
+			NULL,
+			NULL, //marshaller
+			G_TYPE_STRING, // return tye
 			1, // num args
 			G_TYPE_STRING); // arg types
 }
@@ -182,6 +223,7 @@ void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content
 	gtk_widget_set_sensitive(d->headerview, TRUE);
 
 	if(GMIME_IS_PART(obj)) {
+#if 0
 		if(strncmp(content_type_name, "text", 4) == 0) {
 			GMimeDataWrapper* mco = g_mime_part_get_content_object((GMimePart*)obj);
 			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
@@ -217,6 +259,23 @@ void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content
 			// TODO show "cannot display this content"
 			printf("cannot display type %s\n", content_type_name);
 		}
+#endif
+		if(strncmp(content_type_name, "text", 4) == 0 || strncmp(content_type_name, "image", 5) == 0) {
+			GMimeDataWrapper* mco = g_mime_part_get_content_object((GMimePart*)obj);
+			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
+			gint64 len = g_mime_stream_length(gms);
+			const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding((GMimePart*)obj));
+			int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
+			char* str = malloc(header_length + len + 1);
+			sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
+			g_mime_stream_read(gms, &str[header_length], len);
+			str[header_length + len] = '\0';
+			g_mime_stream_reset(gms);
+			webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), str);
+			free(str);
+			gtk_widget_show(d->webview);
+		}
+
 	}
 }
 

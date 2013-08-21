@@ -319,6 +319,7 @@ gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->view), mime_model_get_gtk_model(m));
 
 	w->model = m;
+	g_signal_connect(G_OBJECT(w->panel), "cid-requested", G_CALLBACK(mime_model_object_from_cid), w->model);
 	w->filename = strdup(filename);
 	return TRUE;
 }

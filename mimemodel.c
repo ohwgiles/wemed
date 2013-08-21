@@ -308,6 +308,7 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
 
 	mime_model_write_to_file(m, "/tmp/test");
+	printf("m=%p\n", m);
 	return m;
 }
 
@@ -376,3 +377,26 @@ void mime_model_free(MimeModel* m) {
 	}
 }
 
+char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data) {
+	MimeModel* m = user_data;
+	GHashTable* hash = (GHashTable*) m->cidhash;
+	GMimePart* part = g_hash_table_lookup(hash, cid);
+	if(part) {
+		GMimeContentType* ct = g_mime_object_get_content_type((GMimeObject*)part);
+		const char* content_type_name = g_mime_content_type_to_string(ct);
+		GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
+		GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
+		gint64 len = g_mime_stream_length(gms);
+		const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
+		int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
+		char* str = malloc(header_length + len + 1);
+		sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
+		g_mime_stream_read(gms, &str[header_length], len);
+		str[header_length + len] = '\0';
+		g_mime_stream_reset(gms);
+		return str;
+	} else {
+		printf("could not find %s in hash\n", cid);
+		return NULL;
+	}
+}
