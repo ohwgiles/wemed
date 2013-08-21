@@ -182,7 +182,7 @@ void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content
 	gtk_widget_set_sensitive(d->headerview, TRUE);
 
 	if(GMIME_IS_PART(obj)) {
-		if(strcmp(content_type_name, "text/html") == 0) {
+		if(strncmp(content_type_name, "text", 4) == 0) {
 			GMimeDataWrapper* mco = g_mime_part_get_content_object((GMimePart*)obj);
 			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
 			gint64 len = g_mime_stream_length(gms);
@@ -191,7 +191,10 @@ void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content
 			str[len] = '\0';
 			g_mime_stream_reset(gms);
 			printf("read %lld bytes\n", len);
-			webkit_web_view_load_html(WEBKIT_WEB_VIEW(d->webview),  str, NULL);
+			if(strcmp(&content_type_name[5], "html") == 0)
+				webkit_web_view_load_html(WEBKIT_WEB_VIEW(d->webview),  str, NULL);
+			else if(strcmp(&content_type_name[5], "plain") == 0)
+				webkit_web_view_load_plain_text(WEBKIT_WEB_VIEW(d->webview),  str);
 			free(str);
 			gtk_widget_show(d->webview);
 		} else if(strncmp("image", content_type_name, 5) == 0) {

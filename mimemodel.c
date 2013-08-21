@@ -253,6 +253,20 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 		parent_part = GMIME_MULTIPART(obj_from_iter(m, parent_iter));
 	}
 
+	if(GMIME_IS_MULTIPART(new_node)) {
+		// force boundary string generation
+		g_mime_multipart_get_boundary(GMIME_MULTIPART(new_node));
+	}
+
+	if(GMIME_IS_PART(new_node)) {
+		// set encoding types so gmime can encode/decode
+		g_mime_object_set_content_type_parameter(new_node, "charset", "utf-8");
+		GMimeStream* content = g_mime_stream_mem_new();
+		GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(content, GMIME_CONTENT_ENCODING_DEFAULT);
+		g_object_unref(content);
+		g_mime_part_set_content_object(GMIME_PART(new_node), data);
+		g_object_unref(data);
+	}
 	g_mime_multipart_add(parent_part, new_node);
 	GtkTreeIter result;
 	gtk_tree_store_append(m->store, &result, &parent_iter);
@@ -337,12 +351,13 @@ gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	FILE* fp = fopen(filename, "wb");
 	if(!fp) return FALSE;
 
-	GMimeStream* gfs = g_mime_stream_mem_new();
+	GMimeStream* gfs = g_mime_stream_file_new(fp);
 	
 	if(!gfs) return FALSE;
 	g_mime_object_write_to_stream(GMIME_OBJECT(m->message), gfs);
 	g_object_unref(gfs);
 
+	printf("written, now releasing streams\n");
 	GMimeStream* null_stream = g_mime_stream_null_new();
 	g_mime_multipart_foreach(GMIME_MULTIPART(g_mime_message_get_mime_part(m->message)), hack_null_read, null_stream);
 	g_object_unref(null_stream);

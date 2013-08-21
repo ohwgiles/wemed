@@ -31,6 +31,7 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	GMimeObject* obj = (GMimeObject*) part;
 	w->current_part = obj;
 	const char* mime_type = mime_model_content_type(w->current_part);
+	printf("set current part: mime type = %s\n", mime_type);
 	wemed_panel_load_part(WEMED_PANEL(w->panel), obj, mime_type);
 	free(w->mime_app.name);
 	free(w->mime_app.exec);
