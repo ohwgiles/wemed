@@ -338,15 +338,6 @@ void mime_model_write_part(GMimePart* part, FILE* fp) {
 	g_object_unref(filestream);
 }
 
-static void hack_null_read(GMimeObject* up, GMimeObject* part, gpointer ud) {
-	if(GMIME_IS_PART(part)) {
-		GMimeStream* stream = GMIME_STREAM(ud);
-		GMimeDataWrapper* dw = g_mime_part_get_content_object(GMIME_PART(part));
-		GMimeStream* ms = g_mime_data_wrapper_get_stream(dw);
-		g_mime_stream_write_to_stream(ms, stream);
-		g_mime_stream_reset(ms);
-	}
-}
 
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	FILE* fp = fopen(filename, "wb");
@@ -357,11 +348,6 @@ gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	if(!gfs) return FALSE;
 	g_mime_object_write_to_stream(GMIME_OBJECT(m->message), gfs);
 	g_object_unref(gfs);
-
-	printf("written, now releasing streams\n");
-	GMimeStream* null_stream = g_mime_stream_null_new();
-	g_mime_multipart_foreach(GMIME_MULTIPART(g_mime_message_get_mime_part(m->message)), hack_null_read, null_stream);
-	g_object_unref(null_stream);
 
 	return TRUE;
 }
@@ -386,6 +372,7 @@ char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer use
 		const char* content_type_name = g_mime_content_type_to_string(ct);
 		GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
 		GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
+		g_mime_stream_reset(gms);
 		gint64 len = g_mime_stream_length(gms);
 		const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
 		int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;

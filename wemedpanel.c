@@ -263,6 +263,7 @@ void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content
 		if(strncmp(content_type_name, "text", 4) == 0 || strncmp(content_type_name, "image", 5) == 0) {
 			GMimeDataWrapper* mco = g_mime_part_get_content_object((GMimePart*)obj);
 			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
+			g_mime_stream_reset(gms);
 			gint64 len = g_mime_stream_length(gms);
 			const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding((GMimePart*)obj));
 			int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
