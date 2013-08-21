@@ -237,11 +237,13 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 	return part_new;
 }
 
-GMimeObject* mime_model_new_part(MimeModel* m, GMimeObject* parent_or_sibling, const char* fromfile) {
+GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type_string, const char* content) {
 	printf("parent_or_sibling: %s\n", g_mime_content_type_to_string(g_mime_object_get_content_type(parent_or_sibling)));
 	GMimeMultipart* parent_part = NULL;
 	GtkTreeIter parent_iter;
-	GMimePart* new_part = g_mime_part_new();
+	GMimeContentType* content_type = g_mime_content_type_new_from_string(content_type_string);
+	GMimeObject* new_node = g_mime_object_new(content_type);
+	g_object_unref(content_type);
 
 	if(GMIME_IS_MULTIPART(parent_or_sibling)) {
 		parent_iter = iter_from_obj(m, parent_or_sibling);
@@ -251,11 +253,11 @@ GMimeObject* mime_model_new_part(MimeModel* m, GMimeObject* parent_or_sibling, c
 		parent_part = GMIME_MULTIPART(obj_from_iter(m, parent_iter));
 	}
 
-	g_mime_multipart_add(parent_part, GMIME_OBJECT(new_part));
+	g_mime_multipart_add(parent_part, new_node);
 	GtkTreeIter result;
 	gtk_tree_store_append(m->store, &result, &parent_iter);
-	add_part_to_store(m->store, &result, GMIME_OBJECT(new_part));
-	return GMIME_OBJECT(new_part);
+	add_part_to_store(m->store, &result, new_node);
+	return new_node;
 }
 
 void mime_model_reparse(MimeModel* m) {

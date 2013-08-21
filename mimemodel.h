@@ -18,7 +18,7 @@ GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
 const char* mime_model_content_type(GMimeObject* obj);
 
 GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* new_header);
-GMimeObject* mime_model_new_part(MimeModel* m, GMimeObject* parent_or_sibling, const char* fromfile);
+GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type, const char* content);
 void mime_model_write_part(GMimePart* part, FILE* fp);
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename);
 void mime_model_reparse(MimeModel*);

@@ -164,9 +164,29 @@ void menu_file_new_blank(GtkMenuItem* item, WemedWindow* w) {
 
 }
 
-static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
-	mime_model_new_part(w->model, w->current_part, NULL);
+static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
+	GtkWidget* combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), NULL, "multipart/related");
+	gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), NULL, "multipart/alternative");
+	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
+
+	GtkWidget* dialog = gtk_dialog_new_with_buttons("Select Node Type", NULL/*GTK_WINDOW(w->window)*/, GTK_DIALOG_MODAL, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT, NULL);
+	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+	gtk_container_add(GTK_CONTAINER(content), combo);
+	gtk_widget_show_all(dialog);
+	int response = gtk_dialog_run(GTK_DIALOG(dialog));
+	if(response == GTK_RESPONSE_ACCEPT) {
+		printf("selected %s\n", gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo)));
+		mime_model_new_node(w->model, w->current_part, gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo)), NULL);
+	}
+	gtk_widget_destroy(dialog);
 }
+
+static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
+	mime_model_new_node(w->model, w->current_part, "text/plain", NULL);
+}
+
+
 static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 }
 
@@ -250,6 +270,7 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(new), newmenu);
 			{ // Part -> New -> Multipart Node
 				GtkWidget* node = gtk_menu_item_new_with_mnemonic("_Multipart Node");
+				g_signal_connect(G_OBJECT(node), "activate", G_CALLBACK(menu_part_new_node), w);
 				gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), node);
 			}
 			{ // Part -> New -> Empty Part
