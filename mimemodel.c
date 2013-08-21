@@ -290,8 +290,8 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	mime_model_reparse(m);
 	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
-	mime_model_write_to_file(m, "/tmp/test");
 
+	mime_model_write_to_file(m, "/tmp/test");
 	return m;
 }
 
@@ -321,22 +321,29 @@ void mime_model_write_part(GMimePart* part, FILE* fp) {
 	g_object_unref(filestream);
 }
 
+static void hack_null_read(GMimeObject* up, GMimeObject* part, gpointer ud) {
+	if(GMIME_IS_PART(part)) {
+		GMimeStream* stream = GMIME_STREAM(ud);
+		GMimeDataWrapper* dw = g_mime_part_get_content_object(GMIME_PART(part));
+		GMimeStream* ms = g_mime_data_wrapper_get_stream(dw);
+		g_mime_stream_write_to_stream(ms, stream);
+		g_mime_stream_reset(ms);
+	}
+}
+
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	FILE* fp = fopen(filename, "wb");
 	if(!fp) return FALSE;
 
-	GMimeStream* gfs = g_mime_stream_file_new(fp);
+	GMimeStream* gfs = g_mime_stream_mem_new();
+	
 	if(!gfs) return FALSE;
-	GtkTreeIter first;
-	gtk_tree_model_get_iter_first(GTK_TREE_MODEL(m->store), &first);
-	GValue v = {0};
-	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &first, 1, &v);
-	GMimeObject* root = g_value_get_pointer(&v);
-	g_value_unset(&v);
-	g_mime_object_write_to_stream(root, gfs);
+	g_mime_object_write_to_stream(GMIME_OBJECT(m->message), gfs);
+	g_object_unref(gfs);
 
-
-	//gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), write_parts_to_stream, gfs);
+	GMimeStream* null_stream = g_mime_stream_null_new();
+	g_mime_multipart_foreach(GMIME_MULTIPART(g_mime_message_get_mime_part(m->message)), hack_null_read, null_stream);
+	g_object_unref(null_stream);
 
 	return TRUE;
 }

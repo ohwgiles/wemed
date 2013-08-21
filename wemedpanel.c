@@ -163,7 +163,7 @@ GtkWidget* wemed_panel_new() {
 
 void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash) {
 	GET_D(wp);
-	webkit_web_context_register_uri_scheme(d->ctx, "cid", cid_loading_cb, hash, NULL);
+	//webkit_web_context_register_uri_scheme(d->ctx, "cid", cid_loading_cb, hash, NULL);
 }
 
 void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name) {
@@ -185,27 +185,27 @@ void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content
 		if(strcmp(content_type_name, "text/html") == 0) {
 			GMimeDataWrapper* mco = g_mime_part_get_content_object((GMimePart*)obj);
 			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
-			char* str = malloc(g_mime_stream_length(gms));
-			g_mime_stream_read(gms, str, g_mime_stream_length(gms));
+			gint64 len = g_mime_stream_length(gms);
+			char* str = malloc(g_mime_stream_length(gms)+1);
+			g_mime_stream_read(gms, str, len);
+			str[len] = '\0';
 			g_mime_stream_reset(gms);
+			printf("read %lld bytes\n", len);
 			webkit_web_view_load_html(WEBKIT_WEB_VIEW(d->webview),  str, NULL);
 			free(str);
 			gtk_widget_show(d->webview);
 		} else if(strncmp("image", content_type_name, 5) == 0) {
-			int content_type_name_l = strlen(content_type_name);
-			const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding((GMimePart*)obj));
-			int content_encoding_l = strlen(content_encoding);
-
 			GMimeDataWrapper* mco = g_mime_part_get_content_object((GMimePart*)obj);
 			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
-			gint64 stream_length = g_mime_stream_length(gms);
-
-			int header_length = 5 /*data:*/ + content_type_name_l + 1 /*;*/ + content_encoding_l + 1 /*,*/ ;
-			char* str = malloc(header_length + stream_length + 1);
+			gint64 len = g_mime_stream_length(gms);
+			const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding((GMimePart*)obj));
+			int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
+			char* str = malloc(header_length + len + 1);
 			sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
-			g_mime_stream_read(gms, &str[header_length], stream_length);
-			str[header_length+stream_length] = '\0';
+			g_mime_stream_read(gms, &str[header_length], len);
+			str[header_length + len] = '\0';
 			g_mime_stream_reset(gms);
+			printf("read %lld bytes\n", len);
 			webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview),  str);
 			free(str);
 			gtk_widget_show(d->webview);
