@@ -28,6 +28,10 @@ void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash);
 
 void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name);
 
+char* wemed_panel_get_headers(WemedPanel* wp);
+
+char* wemed_panel_get_text_content(WemedPanel* wp, gboolean is_html);
+
 void wemed_panel_clear(WemedPanel* wp);
 
 #endif

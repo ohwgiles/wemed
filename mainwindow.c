@@ -47,6 +47,38 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	}
 }
 
+static void register_changes(WemedWindow* w) {
+	if(w->current_part == NULL) return;
+	// first see if the content has been changed. Only do this for
+	// content types of text/* since other types are edited externally,
+	// and they are saved then
+	if(GMIME_IS_PART(w->current_part)) {
+		const char* ct = mime_model_content_type(w->current_part);
+		if(strncmp(ct, "text/", 5) == 0) {
+			gboolean is_html = (strcmp(&ct[5], "html") == 0);
+			char* new_content = wemed_panel_get_text_content(WEMED_PANEL(w->panel), is_html);
+			char* old_content = mime_model_part_content(GMIME_PART(w->current_part));
+			if(strcmp(new_content, old_content) != 0) {
+				w->dirty = TRUE;
+				mime_model_update_content(w->model, w->current_part, new_content);
+			}
+			free(new_content);
+			free(old_content);
+		}
+	}
+
+	char* new_headers = wemed_panel_get_headers(WEMED_PANEL(w->panel));
+	if(strcmp(new_headers,g_mime_object_get_headers(w->current_part)) != 0) {
+		w->dirty = TRUE;
+		GMimeObject* new_part = mime_model_update_header(w->model, w->current_part, new_headers);
+		// a header change can cause a display change in the panel,
+		// for example changing mime type or encoding. This causes the
+		// display to be updated immediately.
+		set_current_part(w, new_part);
+	}
+	free(new_headers);
+}
+
 static void tree_selection_changed(GtkTreeSelection* selection, gpointer data) {
 	GtkTreeIter iter;
 	GtkTreeModel *model;
@@ -55,19 +87,11 @@ static void tree_selection_changed(GtkTreeSelection* selection, gpointer data) {
 
 	if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
 		gtk_tree_model_get(model, &iter, 1, &part, -1);
+		// before changing to the new part, save changes to the old one
+		register_changes(w);
 		set_current_part(w, part);
 	}
 
-}
-
-static void headers_modified(GObject* emitter, gchar* headers, gpointer userdata) {
-	WemedWindow* w = userdata;
-	printf("w=%p\n",w);
-	GMimeObject* new_part = mime_model_update_header(w->model, w->current_part, headers);
-	if(new_part) {
-		w->dirty = TRUE;
-		set_current_part(w, new_part);
-	}
 }
 
 static void open_part_with_external_app(GMimePart* part, const char* app) {
@@ -89,6 +113,7 @@ static void open_part_with_external_app(GMimePart* part, const char* app) {
 }
 
 static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
+	register_changes(w);
 	(void) item; // unused
 	gboolean ret = TRUE;
 	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Save File", GTK_WINDOW(w->root_window), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
@@ -110,6 +135,7 @@ static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static gboolean menu_file_save(GtkMenuItem* item, WemedWindow* w) {
+	register_changes(w);
 	gboolean ret = TRUE;
 	if(w->filename == NULL)
 		ret = menu_file_save_as(NULL, w);
@@ -120,6 +146,7 @@ static gboolean menu_file_save(GtkMenuItem* item, WemedWindow* w) {
 	return ret;
 }
 static gboolean menu_file_close(GtkMenuItem* item, WemedWindow* w) {
+	register_changes(w);
 	(void) item; // unused
 	if(w->dirty) {
 		GtkWidget* dialog = gtk_message_dialog_new(
@@ -194,10 +221,12 @@ static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; //unused
 	//wemed_open_part(WEMED_PANEL(w->panel), w->mime_app.exec);
+	register_changes(w);
 	open_part_with_external_app(GMIME_PART(w->current_part), w->mime_app.exec);
 }
 static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; //unused
+	register_changes(w);
 	const char* content_type_name = mime_model_content_type(w->current_part);
 	printf("calling open_with on type %s\n", content_type_name);
 	char* exec = open_with(NULL, content_type_name);
@@ -364,7 +393,6 @@ WemedWindow* wemed_window_create() {
 	gtk_paned_add1(GTK_PANED(hpanel), treeviewwin);
 	w->panel = wemed_panel_new();
 	gtk_paned_add2(GTK_PANED(hpanel), w->panel);
-	g_signal_connect(G_OBJECT(w->panel), "headers-changed", G_CALLBACK(headers_modified), w);
 
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(tree_selection_changed), w);
 

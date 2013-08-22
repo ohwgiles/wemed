@@ -171,6 +171,16 @@ static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 	return parent;
 }
 
+void mime_model_update_content(MimeModel* m, GMimeObject* part, const char* new_content) {
+	printf("got content: %s\n", new_content);
+	GMimeDataWrapper* old = g_mime_part_get_content_object(GMIME_PART(part));
+	g_object_unref(old);
+	GMimeStream* content = g_mime_stream_mem_new_with_buffer(new_content, strlen(new_content));
+	GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(content, g_mime_part_get_content_encoding(GMIME_PART(part)));
+	g_mime_part_set_content_object(GMIME_PART(part), data);
+	g_mime_stream_reset(content);
+}
+
 GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const char* new_header) {
 	//MimeModel* m = user_data;
 	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header, strlen(new_header));
@@ -263,6 +273,7 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 		g_mime_object_set_content_type_parameter(new_node, "charset", "utf-8");
 		GMimeStream* content = g_mime_stream_mem_new();
 		GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(content, GMIME_CONTENT_ENCODING_DEFAULT);
+		g_mime_part_set_content_encoding(GMIME_PART(new_node), GMIME_CONTENT_ENCODING_DEFAULT);
 		g_object_unref(content);
 		g_mime_part_set_content_object(GMIME_PART(new_node), data);
 		g_object_unref(data);
@@ -386,4 +397,43 @@ char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer use
 		printf("could not find %s in hash\n", cid);
 		return NULL;
 	}
+}
+char* mime_model_part_content(GMimePart* part) {
+	enum { plaintext, html, image, other };
+	const char* content_type_name = mime_model_content_type(GMIME_OBJECT(part));
+	char* str = 0;
+
+	int type =
+		(strcmp(content_type_name, "text/plain") == 0)? plaintext:
+		(strcmp(content_type_name, "text/html") == 0)? html:
+		(strncmp(content_type_name, "image/", 6) == 0)? image: other;
+
+	if(type < other) {
+		GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
+		GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
+		g_mime_stream_reset(gms);
+		gint64 len = g_mime_stream_length(gms);
+		const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
+		if(type < image) { // html or text
+			str = malloc(len + 1);
+			g_mime_stream_read(gms, str, len);
+			str[len] = '\0';
+			/*
+			webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), str, content_type_name, content_encoding, NULL);
+			free(str);
+			webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);*/
+		} else { // type == image
+			int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
+			str = malloc(header_length + len + 1);
+			sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
+			g_mime_stream_read(gms, &str[header_length], len);
+			str[header_length + len] = '\0';
+			/*
+			webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), str);
+			free(str);*/
+		}
+
+	}
+
+	return str;
 }
