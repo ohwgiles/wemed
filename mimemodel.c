@@ -52,8 +52,14 @@ static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObjec
 	GdkPixbuf* icon = gtk_icon_theme_load_icon(git, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 	free(icon_name);
 
+	const char* name = g_mime_part_get_filename(GMIME_PART(part)) ?: content_type_name;
+
 	// add to tree
-	gtk_tree_store_set(store, iter, 0, g_mime_content_type_to_string(ct), 1, part, 2, icon, -1);
+	gtk_tree_store_set(store, iter,
+			MIME_MODEL_COL_OBJECT, part,
+			MIME_MODEL_COL_ICON, icon,
+			MIME_MODEL_COL_NAME, name,
+			-1);
 	g_object_unref(icon);
 }
 
@@ -77,8 +83,15 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 		printf("multipart!\n");
 		GMimeContentType* ct = g_mime_object_get_content_type(part);
 		printf("(%s)\n", g_mime_content_type_to_string(ct));
+		GtkIconTheme* git = gtk_icon_theme_get_default();
+		GdkPixbuf* icon = gtk_icon_theme_load_icon(git, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		gtk_tree_store_append(h->m->store, &h->child, &h->current);
-		gtk_tree_store_set(h->m->store, &h->child, 0, g_mime_content_type_to_string(ct), 1, part, -1);
+		gtk_tree_store_set(h->m->store, &h->child,
+				MIME_MODEL_COL_OBJECT, part,
+				MIME_MODEL_COL_ICON, icon,
+				MIME_MODEL_COL_NAME, g_mime_content_type_to_string(ct),
+				-1);
+		g_object_unref(icon);
 		GtkTreeIter parent = h->current;
 		h->current = h->child;
 		h->current_multipart = part;
@@ -116,7 +129,7 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpointer user_data) {
 	return TRUE;
 	GValue v = {0};//gtk_value_new();
-	gtk_tree_model_get_value(gtm, iter, 1, &v);
+	gtk_tree_model_get_value(gtm, iter, MIME_MODEL_COL_OBJECT, &v);
 	GMimeObject* part = (GMimeObject*) g_value_get_pointer(&v);
 	g_value_unset(&v);
 	if(GMIME_IS_PART(part)) {
@@ -139,7 +152,7 @@ struct PartFinder {
 gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, void* user_data) {
 	struct PartFinder* p = (struct PartFinder*) user_data;
 	GMimeObject* obj = NULL;
-	gtk_tree_model_get(model, iter, 1, &obj, -1);
+	gtk_tree_model_get(model, iter, MIME_MODEL_COL_OBJECT, &obj, -1);
 	printf("comparing %p with %p\n", obj, p->obj);
 	if(obj == p->obj) {
 		printf("matched!\n");
@@ -159,7 +172,7 @@ static GtkTreeIter iter_from_obj(MimeModel* m, GMimeObject* part) {
 
 static GMimeObject* obj_from_iter(MimeModel* m, GtkTreeIter iter) {
 	GValue v = {0};
-	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &iter, 1, &v);
+	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &iter, MIME_MODEL_COL_OBJECT, &v);
 	printf("obj_from_iter: %s\n", g_mime_content_type_to_string(g_mime_object_get_content_type(g_value_get_pointer(&v))));
 	return GMIME_OBJECT(g_value_get_pointer(&v));
 }
@@ -290,7 +303,10 @@ void mime_model_reparse(MimeModel* m) {
 	h.m = m;
 	gtk_tree_store_clear(m->store);
 	gtk_tree_store_append(m->store, &h.current, NULL);
-	gtk_tree_store_set(m->store, &h.current, 0, m->name, 1, m->message, -1);
+	gtk_tree_store_set(m->store, &h.current,
+			MIME_MODEL_COL_OBJECT, m->message,
+			MIME_MODEL_COL_NAME, m->name,
+			-1);
 	//reparse_segment(
 	parse_mime_segment(NULL, g_mime_message_get_mime_part(m->message), &h);
 }
@@ -298,7 +314,7 @@ void mime_model_reparse(MimeModel* m) {
 MimeModel* mime_model_create_from_file(const char* filename) {
 	MimeModel* m = malloc(sizeof(MimeModel));
 
-	m->store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_POINTER, GDK_TYPE_PIXBUF);
+	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
 	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
 	m->name = index(filename, '/') ? strdup(strrchr(filename, '/')) : strdup(filename);
 
@@ -327,7 +343,7 @@ gboolean write_parts_to_stream(GtkTreeModel* model, GtkTreePath* path, GtkTreeIt
 	GMimeStream* stream = (GMimeStream*) data;
 	GValue v = {0};
 	//g_value_init(&v, G_TYPE_POINTER);
-	gtk_tree_model_get_value(model, iter, 1, &v);
+	gtk_tree_model_get_value(model, iter, MIME_MODEL_COL_OBJECT, &v);
 	GMimeObject* obj = g_value_get_pointer(&v);
 
 	//GMimeContentType* ct = g_mime_object_get_content_type(obj);

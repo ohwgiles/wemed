@@ -11,6 +11,7 @@
 #include "mimeapp.h"
 #include "wemedpanel.h"
 #include "mimemodel.h"
+#include "mimetree.h"
 #include "mainwindow.h"
 #include "openwith.h"
 
@@ -79,19 +80,9 @@ static void register_changes(WemedWindow* w) {
 	free(new_headers);
 }
 
-static void tree_selection_changed(GtkTreeSelection* selection, gpointer data) {
-	GtkTreeIter iter;
-	GtkTreeModel *model;
-	gpointer part;
-	WemedWindow* w = (WemedWindow*) data;
-
-	if (gtk_tree_selection_get_selected(selection, &model, &iter)) {
-		gtk_tree_model_get(model, &iter, 1, &part, -1);
-		// before changing to the new part, save changes to the old one
-		register_changes(w);
-		set_current_part(w, part);
-	}
-
+static void tree_selection_changed(MimeTree* tree, GMimeObject* obj, WemedWindow* w) {
+	register_changes(w);
+	set_current_part(w, obj);
 }
 
 static void open_part_with_external_app(GMimePart* part, const char* app) {
@@ -346,6 +337,7 @@ gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 	if(!m) return FALSE;
 	wemed_panel_set_cid_table(WEMED_PANEL(w->panel), mime_model_get_cid_hash(m));
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->view), mime_model_get_gtk_model(m));
+	gtk_tree_view_expand_all(GTK_TREE_VIEW(w->view));
 
 	w->model = m;
 	g_signal_connect(G_OBJECT(w->panel), "cid-requested", G_CALLBACK(mime_model_object_from_cid), w->model);
@@ -366,26 +358,7 @@ WemedWindow* wemed_window_create() {
 	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 3);
 	GtkWidget* hpanel = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 
-	w->view = gtk_tree_view_new();
-	GtkTreeSelection *select = gtk_tree_view_get_selection (GTK_TREE_VIEW(w->view));
-	gtk_tree_selection_set_mode(select, GTK_SELECTION_SINGLE);
-
-
-	GtkTreeViewColumn* col = gtk_tree_view_column_new();
-	gtk_tree_view_column_set_title(col, "Segment");
-	gtk_tree_view_append_column(GTK_TREE_VIEW(w->view), col);
-
-	GtkCellRenderer* renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_column_pack_start(col, renderer, TRUE);
-	gtk_tree_view_column_add_attribute(col, renderer, "text", 0);
-
-	col = gtk_tree_view_column_new();
-	gtk_tree_view_column_set_title(col, "Icon");
-	gtk_tree_view_append_column(GTK_TREE_VIEW(w->view), col);
-
-	renderer = gtk_cell_renderer_pixbuf_new();
-	gtk_tree_view_column_pack_start(col, renderer, TRUE);
-	gtk_tree_view_column_add_attribute(col, renderer, "pixbuf", 2);
+	w->view = mime_tree_new();
 
 	GtkWidget* treeviewwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(treeviewwin), GTK_SHADOW_IN);
@@ -394,7 +367,7 @@ WemedWindow* wemed_window_create() {
 	w->panel = wemed_panel_new();
 	gtk_paned_add2(GTK_PANED(hpanel), w->panel);
 
-	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(tree_selection_changed), w);
+	g_signal_connect(G_OBJECT(w->view), "selection-changed", G_CALLBACK(tree_selection_changed), w);
 
 	gtk_box_pack_start(GTK_BOX(vbox), hpanel, TRUE, TRUE, 0);
 

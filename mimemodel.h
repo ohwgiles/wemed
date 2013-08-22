@@ -8,6 +8,12 @@
 struct MimeModel_S;
 typedef struct MimeModel_S MimeModel;
 
+enum {
+	MIME_MODEL_COL_OBJECT,
+	MIME_MODEL_COL_ICON,
+	MIME_MODEL_COL_NAME,
+	MIME_MODEL_NUM_COLS
+};
 
 MimeModel* mime_model_create_empty();
 MimeModel* mime_model_create_from_file(const char*);
