@@ -99,13 +99,17 @@ static void load_changed_cb(WebKitWebView *web_view, WebKitLoadStatus status, We
 }
 
 static void progress_changed_cb(GObject* web_view, GdkEvent* e, WemedPanel* wp) {
-	//GET_D(wp);
+	GET_D(wp);
 	gdouble p;
 	g_object_get(web_view, "progress", &p, NULL);
 	printf("progress_changed_cb: %f\n", p);
 	//(void) pspec; //unused
 	//double p = webkit_web_view_get_estimated_load_progress(web_view);
-	//gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(d->progress_bar), p);
+	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(d->progress_bar), p);
+	if(p == 1) {
+		gtk_widget_show(d->webview);
+		gtk_widget_hide(d->progress_bar);
+	}
 }
 
 static void hide_progress_bar(GtkWidget* container, GtkWidget* bar) {
@@ -180,10 +184,14 @@ static void wemed_panel_init(WemedPanel* wp) {
 	gtk_container_add(GTK_CONTAINER(scroll), d->headerview);
 	gtk_paned_pack1(GTK_PANED(paned), scroll, FALSE, FALSE);
 
+	GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	scroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(scroll), d->webview);
-	gtk_paned_pack2(GTK_PANED(paned), scroll, TRUE, TRUE);
+	gtk_box_pack_start(GTK_BOX(box), scroll, TRUE, TRUE, 0);
+	gtk_box_pack_end(GTK_BOX(box), d->progress_bar, FALSE, FALSE, 0);
+	gtk_paned_pack2(GTK_PANED(paned), box, TRUE, TRUE);
+	//gtk_paned_pack2(GTK_PANED(paned), d->progress_bar, TRUE, TRUE);
 }
 
 static void wemed_panel_class_init(WemedPanelClass* class) {
@@ -217,13 +225,15 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* he
 	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
 		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/html", NULL, NULL);
 		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
+		gtk_widget_show(d->progress_bar);
 	} else if(type == WEMED_PANEL_DOC_TYPE_TEXT_PLAIN) {
 		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/plain", NULL, NULL);
 		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
+		gtk_widget_show(d->progress_bar);
 	} else if(type == WEMED_PANEL_DOC_TYPE_IMAGE) {
 		webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), content);
+		gtk_widget_show(d->progress_bar);
 	}
-	gtk_widget_show(d->webview);
 
 }
 void wemed_panel_show_source(WemedPanel* wp, gboolean en) {
