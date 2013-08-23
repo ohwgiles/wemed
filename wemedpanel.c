@@ -102,7 +102,6 @@ static void progress_changed_cb(GObject* web_view, GdkEvent* e, WemedPanel* wp) 
 	GET_D(wp);
 	gdouble p;
 	g_object_get(web_view, "progress", &p, NULL);
-	printf("progress_changed_cb: %f\n", p);
 	//(void) pspec; //unused
 	//double p = webkit_web_view_get_estimated_load_progress(web_view);
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(d->progress_bar), p);

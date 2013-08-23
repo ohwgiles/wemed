@@ -16,8 +16,7 @@ struct MimeModel_S {
 	GtkTreeStore* store;
 	GtkTreeModel* filter;
 	GHashTable* cidhash;
-	GMimeMessage* message;
-	char* name;
+	GMimeObject* message;
 };
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
@@ -117,9 +116,50 @@ gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpo
 	return TRUE;
 }
 
-MimeModel* mime_model_create_empty() {
-	return NULL;
+MimeModel* mime_model_create() {
+	MimeModel* m = malloc(sizeof(MimeModel));
+
+	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
+	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
+	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
+	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
+
+	return m;
 }
+
+MimeModel* mime_model_create_blank() {
+	MimeModel* m = mime_model_create();
+
+	GtkTreeIter root;
+	m->message = GMIME_OBJECT(g_mime_multipart_new());
+	gtk_tree_store_append(m->store, &root, NULL);
+	add_part_to_store(m->store, &root, GMIME_OBJECT(m->message));
+	return m;
+}
+
+MimeModel* mime_model_create_email() {
+	MimeModel* m = mime_model_create();
+
+	char host[HOST_NAME_MAX];
+	gethostname(host, HOST_NAME_MAX);
+	char from[512];
+	sprintf(from, "%s <%s@%s>", getlogin(), getlogin(), host);
+	
+	m->message = GMIME_OBJECT(g_mime_multipart_new());
+	g_mime_object_append_header(m->message, "To", "Example <example@example.com>");
+	g_mime_object_append_header(m->message, "From", from);
+	g_mime_object_append_header(m->message, "MIME-Version", "1.0");
+	g_mime_object_append_header(m->message, "Subject", "(no subject)");
+	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
+	GtkTreeIter root;
+	gtk_tree_store_append(m->store, &root, NULL);
+	add_part_to_store(m->store, &root, m->message);
+	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative", NULL);
+	mime_model_new_node(m, alternative, "text/html", NULL);
+	mime_model_new_node(m, alternative, "text/plain", NULL);
+	return m;
+}
+
 
 struct PartFinder {
 	GtkTreeIter iter;
@@ -241,26 +281,34 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 		g_mime_multipart_get_boundary(GMIME_MULTIPART(new_node));
 	}
 
-	if(GMIME_IS_PART(new_node) && filename) {
-		FILE* fp = fopen(filename, "rb");
-		if(!fp) return NULL;
-		fseek(fp, 0, SEEK_END);
-		int len = ftell(fp);
-		rewind(fp);
-		char* new_content = malloc(len);
-		fread(new_content, 1, len, fp);
-		fclose(fp);
-		g_mime_object_set_content_disposition(new_node, g_mime_content_disposition_new_from_string(GMIME_DISPOSITION_ATTACHMENT));
-		g_mime_part_set_filename(GMIME_PART(new_node), &strrchr(filename,'/')[1]);
-		// this is a nasty hack to determine the proper encoding. the file is first
-		// stored in the mime tree in its binary form, then the call to
-		// g_mime_object_encode sets the best encoding method. the second call
-		// to mime_model_update_content is required to actually save the data in
-		// the mime tree in the encoded (not raw binary) format
-		mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
-		g_mime_object_encode(new_node, GMIME_ENCODING_CONSTRAINT_7BIT);
-		mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
-		free(new_content);
+	if(GMIME_IS_PART(new_node)) {
+		if(filename) {
+			FILE* fp = fopen(filename, "rb");
+			if(!fp) return NULL;
+			fseek(fp, 0, SEEK_END);
+			int len = ftell(fp);
+			rewind(fp);
+			char* new_content = malloc(len);
+			fread(new_content, 1, len, fp);
+			fclose(fp);
+			g_mime_object_set_content_disposition(new_node, g_mime_content_disposition_new_from_string(GMIME_DISPOSITION_ATTACHMENT));
+			g_mime_part_set_filename(GMIME_PART(new_node), &strrchr(filename,'/')[1]);
+			// this is a nasty hack to determine the proper encoding. the file is first
+			// stored in the mime tree in its binary form, then the call to
+			// g_mime_object_encode sets the best encoding method. the second call
+			// to mime_model_update_content is required to actually save the data in
+			// the mime tree in the encoded (not raw binary) format
+			mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
+			g_mime_object_encode(new_node, GMIME_ENCODING_CONSTRAINT_7BIT);
+			mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
+			free(new_content);
+		} else {
+			GMimeStream* mem = g_mime_stream_mem_new();
+			GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(mem, GMIME_CONTENT_ENCODING_DEFAULT);
+			g_mime_part_set_content_object(GMIME_PART(new_node), data);
+			g_object_unref(data);
+			g_object_unref(mem);
+		}
 	}
 	g_mime_multipart_add(parent_part, new_node);
 	GtkTreeIter result;
@@ -319,11 +367,7 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 }
 
 MimeModel* mime_model_create_from_file(const char* filename) {
-	MimeModel* m = malloc(sizeof(MimeModel));
-
-	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
-	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
-	m->name = index(filename, '/') ? strdup(strrchr(filename, '/')) : strdup(filename);
+	MimeModel* m = mime_model_create();
 
 	FILE* fp = fopen(filename, "rb");
 	if(!fp) return NULL;
@@ -334,22 +378,20 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	GMimeParser* parser = g_mime_parser_new_with_stream(gfs);
 	if(!parser) return NULL;
 
-	m->message = g_mime_parser_construct_message(parser);
-	if(!m->message) return NULL;
+	GMimeMessage* message = g_mime_parser_construct_message(parser);
+	if(!message) return NULL;
 
-	GMimeObject* root = g_mime_message_get_mime_part(m->message);
+	m->message = g_mime_message_get_mime_part(message);
 	struct TreeInsertHelper h = {0};
 	h.m = m;
 	gtk_tree_store_append(m->store, &h.parent, NULL);
-	add_part_to_store(m->store, &h.parent, root);
-	if(GMIME_IS_MULTIPART(root)) {
-		h.multipart = root;
-		g_mime_multipart_foreach(GMIME_MULTIPART(root), populate_tree, &h);
+	add_part_to_store(m->store, &h.parent, m->message);
+	if(GMIME_IS_MULTIPART(m->message)) {
+		h.multipart = m->message;
+		g_mime_multipart_foreach(GMIME_MULTIPART(m->message), populate_tree, &h);
 	}
 
 	//mime_model_reparse(m);
-	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
-	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
 	return m;
 }
 
@@ -417,7 +459,6 @@ void mime_model_free(MimeModel* m) {
 	if(m) {
 		g_object_unref(m->store);
 		g_hash_table_unref(m->cidhash);
-		free(m->name);
 		g_object_unref(m->message);
 		//todo delete the filter
 		free(m);

@@ -15,7 +15,8 @@ enum {
 	MIME_MODEL_NUM_COLS
 };
 
-MimeModel* mime_model_create_empty();
+MimeModel* mime_model_create_blank();
+MimeModel* mime_model_create_email();
 MimeModel* mime_model_create_from_file(const char*);
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel*);

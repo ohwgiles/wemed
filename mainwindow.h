@@ -8,7 +8,8 @@
 struct WemedWindow_S;
 typedef struct WemedWindow_S WemedWindow;
 
-gboolean wemed_window_open(WemedWindow* w, const char* filename);
+gboolean wemed_window_open(WemedWindow* w, MimeModel* m, const char* filename);
+void wemed_window_close(WemedWindow* w);
 
 WemedWindow* wemed_window_create();
 
