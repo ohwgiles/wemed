@@ -24,13 +24,6 @@ GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
 	return GTK_TREE_MODEL(m->filter);
 }
 
-struct TreeInsertHelper {
-	MimeModel* m;
-	GtkTreeIter current;
-	GtkTreeIter child;
-	GMimeObject* current_multipart;
-	GtkTreeIter lastparent;
-};
 
 
 GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
@@ -42,14 +35,18 @@ const char* mime_model_content_type(GMimeObject* obj) {
 static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObject* part) {
 	// icon
 	GtkIconTheme* git = gtk_icon_theme_get_default();
-	GMimeContentType* ct = g_mime_object_get_content_type(part);
-	const char* content_type_name = g_mime_content_type_to_string(ct);
-	char* icon_name = strdup(content_type_name);
-	for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
-	GdkPixbuf* icon = gtk_icon_theme_load_icon(git, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
-	free(icon_name);
-
-	const char* name = g_mime_part_get_filename(GMIME_PART(part)) ?: content_type_name;
+	GdkPixbuf* icon;
+	const char* name;
+	if(GMIME_IS_PART(part)) {
+		char* icon_name = strdup(mime_model_content_type(part));
+		name = g_mime_part_get_filename(GMIME_PART(part)) ?: strdup(icon_name);
+		for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
+		icon = gtk_icon_theme_load_icon(git, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		free(icon_name);
+	} else {
+		icon = gtk_icon_theme_load_icon(git, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		name = mime_model_content_type(part);
+	}
 
 	// add to tree
 	gtk_tree_store_set(store, iter,
@@ -59,7 +56,7 @@ static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObjec
 			-1);
 	g_object_unref(icon);
 }
-
+#if 0
 static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user_data) {
 
 	struct TreeInsertHelper* h = (struct TreeInsertHelper*) user_data;
@@ -105,6 +102,7 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 		printf("unknown type\n");
 	}
 }
+#endif
 
 gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpointer user_data) {
 	return TRUE;
@@ -270,18 +268,54 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 	add_part_to_store(m->store, &result, new_node);
 	return new_node;
 }
-
+#if 0
 void mime_model_reparse(MimeModel* m) {
 	struct TreeInsertHelper h = {0};
 	h.m = m;
-	gtk_tree_store_clear(m->store);
+	gtk_tree_store_clear(m->store);/*
 	gtk_tree_store_append(m->store, &h.current, NULL);
 	gtk_tree_store_set(m->store, &h.current,
 			MIME_MODEL_COL_OBJECT, m->message,
 			MIME_MODEL_COL_NAME, m->name,
 			-1);
-	//reparse_segment(
+	//reparse_segment(*/
 	parse_mime_segment(NULL, g_mime_message_get_mime_part(m->message), &h);
+}
+#endif
+struct TreeInsertHelper {
+	MimeModel* m;
+	GMimeObject* multipart;
+	GtkTreeIter parent;
+	GtkTreeIter child;
+};
+static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data) {
+	struct TreeInsertHelper* h = (struct TreeInsertHelper*) user_data;
+	// halt the auto-recursion
+	if(up != h->multipart) return;
+	
+	if(GMIME_IS_MULTIPART(part)) {
+		printf("multipart..\n");
+		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
+		add_part_to_store(h->m->store, &h->child, part);
+
+		h->multipart = part;
+		GtkTreeIter grandparent = h->parent;
+		h->parent = h->child;
+		// manual recurse
+		g_mime_multipart_foreach(GMIME_MULTIPART(part), populate_tree, h);
+		h->parent = grandparent;
+		h->multipart = up;
+	} else if (GMIME_IS_PART (part)) {
+		// add to hash
+		const char* cid = g_mime_part_get_content_id((GMimePart*)part);
+		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
+		add_part_to_store(h->m->store, &h->child, part);
+		if(cid) {
+			g_hash_table_insert(h->m->cidhash, strdup(cid), part);
+		}
+	} else {
+		printf("unknown type!\n");
+	}
 }
 
 MimeModel* mime_model_create_from_file(const char* filename) {
@@ -303,7 +337,17 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	m->message = g_mime_parser_construct_message(parser);
 	if(!m->message) return NULL;
 
-	mime_model_reparse(m);
+	GMimeObject* root = g_mime_message_get_mime_part(m->message);
+	struct TreeInsertHelper h = {0};
+	h.m = m;
+	gtk_tree_store_append(m->store, &h.parent, NULL);
+	add_part_to_store(m->store, &h.parent, root);
+	if(GMIME_IS_MULTIPART(root)) {
+		h.multipart = root;
+		g_mime_multipart_foreach(GMIME_MULTIPART(root), populate_tree, &h);
+	}
+
+	//mime_model_reparse(m);
 	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
 	return m;
