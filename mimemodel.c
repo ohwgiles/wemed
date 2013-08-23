@@ -204,24 +204,10 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 		return NULL;
 	}
 
-	printf("parsed headers: %s\n", g_mime_object_get_headers(part_new));
-	if(GMIME_IS_MULTIPART(part_new) != GMIME_IS_MULTIPART(part_old) || GMIME_IS_PART(part_new) != GMIME_IS_PART(part_old)) {
-		printf("apply failed, cannot change part type\n"); // todo dialog box
+	if(G_OBJECT_TYPE(part_new) != G_OBJECT_TYPE(part_old)) {
 		return NULL;
 	}
-	if(GMIME_IS_MULTIPART(part_new) && GMIME_IS_MULTIPART(part_old)) {
-		// make sure the boundaries are equal
-		const char* boundary_old = g_mime_multipart_get_boundary(GMIME_MULTIPART(part_old));
-		const char* boundary_new = g_mime_multipart_get_boundary(GMIME_MULTIPART(part_new));
-		printf("comparing %s with %s\n", boundary_old, boundary_new);
-		if(strcmp(boundary_old, boundary_new) != 0) {
-			printf("cannot modify boundary\n"); //todo dialog
-			return NULL;
-		}
-	}
-	// if we got here, all is well, so we can replace the old headers with the new ones
 
-	// it is a decidedly different procedure for parts and multiparts
 	if(GMIME_IS_PART(part_new)) {
 		g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
 	} else if(GMIME_IS_MULTIPART(part_new)) {
@@ -229,7 +215,6 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 			g_mime_multipart_add(GMIME_MULTIPART(part_new), g_mime_multipart_get_part(GMIME_MULTIPART(part_old), i));
 		}
 	}
-
 
 	GtkTreeIter it = iter_from_obj(m, part_old);
 
