@@ -12,6 +12,7 @@ struct Application {
 
 struct Application get_default_mime_app(const char* content_type);
 
+char* get_file_mime_type(const char* filename);
 
 #endif
 

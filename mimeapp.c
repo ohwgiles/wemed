@@ -82,3 +82,27 @@ struct Application get_default_mime_app(const char* mimetype) {
 	return a;
 }
 
+char* get_file_mime_type(const char* filename) {
+	int pipes[2];
+	char buffer[64] = {0};
+	int n;
+
+	pipe(pipes);
+	fcntl(pipes[1], F_SETFL, fcntl(pipes[1], F_GETFL) | O_NONBLOCK);
+	fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) | O_NONBLOCK);
+
+	pid_t pid = fork();
+	if(pid == 0) { //child
+		dup2(pipes[1], STDOUT_FILENO);
+		close(pipes[0]);
+		close(pipes[1]);
+		execlp("xdg-mime", "xdg-mime", "query", "filetype", filename, NULL);
+		_exit(0);
+	}
+	waitpid(pid, 0, 0);
+	n = read(pipes[0], buffer, 63);
+	if(n < 0) return NULL;
+	buffer[n] = '\0';
+
+	return strdup(buffer);
+}

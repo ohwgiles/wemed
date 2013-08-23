@@ -72,7 +72,7 @@ static void register_changes(WemedWindow* w) {
 			char* old_content = mime_model_part_content(GMIME_PART(w->current_part));
 			if(strcmp(new_content, old_content) != 0) {
 				w->dirty = TRUE;
-				mime_model_update_content(w->model, w->current_part, new_content);
+				mime_model_update_content(w->model, GMIME_PART(w->current_part), new_content, strlen(new_content));
 			}
 			free(new_content);
 			free(old_content);
@@ -122,10 +122,9 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	fseek(fp, 0, SEEK_END);
 	int len = ftell(fp);
 	rewind(fp);
-	char* new_content = malloc(len+1);
+	char* new_content = malloc(len);
 	fread(new_content, 1, len, fp);
-	new_content[len] = '\0';
-	mime_model_update_content(w->model, GMIME_OBJECT(part), new_content);
+	mime_model_update_content(w->model, part, new_content, len);
 	set_current_part(w, GMIME_OBJECT(part));
 	free(new_content);
 	
@@ -236,6 +235,21 @@ static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
 
 
 static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
+	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Open File",
+			GTK_WINDOW(w->root_window),
+			GTK_FILE_CHOOSER_ACTION_OPEN,
+			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+			NULL);
+
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
+		char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+		mime_model_new_node(w->model, w->current_part, NULL, filename);
+		// determine likely mime type
+		g_free(filename);
+	}
+
+	gtk_widget_destroy (dialog);
 }
 
 static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {

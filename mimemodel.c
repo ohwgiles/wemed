@@ -9,6 +9,7 @@
 #include <gmime/gmime.h>
 #include <string.h>
 #include "mimemodel.h"
+#include "mimeapp.h"
 
 struct MimeModel_S {
 	GtkTreeStore* store;
@@ -184,11 +185,11 @@ static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 	return parent;
 }
 
-void mime_model_update_content(MimeModel* m, GMimePart* part, const char* new_content) {
+void mime_model_update_content(MimeModel* m, GMimePart* part, const char* new_content, int len) {
 	// encode content into memstream
 	GMimeStream* encoded_content = g_mime_stream_mem_new();
 	{
-		GMimeStream* content = g_mime_stream_mem_new_with_buffer(new_content, strlen(new_content));
+		GMimeStream* content = g_mime_stream_mem_new_with_buffer(new_content, len);
 		GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), TRUE);
 		GMimeStream* stream_filter = g_mime_stream_filter_new(content);
 		g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), basic_filter);
@@ -257,11 +258,20 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 	return part_new;
 }
 
-GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type_string, const char* content) {
+GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type_string, const char* filename) {
 	printf("parent_or_sibling: %s\n", g_mime_content_type_to_string(g_mime_object_get_content_type(parent_or_sibling)));
 	GMimeMultipart* parent_part = NULL;
 	GtkTreeIter parent_iter;
-	GMimeContentType* content_type = g_mime_content_type_new_from_string(content_type_string);
+
+
+	GMimeContentType* content_type = NULL;
+	if(content_type_string)
+		content_type = g_mime_content_type_new_from_string(content_type_string);
+	else if(filename) {
+		char* mime_type = get_file_mime_type(filename);
+		content_type = g_mime_content_type_new_from_string(mime_type);
+		free(mime_type);
+	}
 	GMimeObject* new_node = g_mime_object_new(content_type);
 	g_object_unref(content_type);
 
@@ -278,15 +288,26 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 		g_mime_multipart_get_boundary(GMIME_MULTIPART(new_node));
 	}
 
-	if(GMIME_IS_PART(new_node)) {
-		// set encoding types so gmime can encode/decode
-		g_mime_object_set_content_type_parameter(new_node, "charset", "utf-8");
-		GMimeStream* content = g_mime_stream_mem_new();
-		GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(content, GMIME_CONTENT_ENCODING_DEFAULT);
-		g_mime_part_set_content_encoding(GMIME_PART(new_node), GMIME_CONTENT_ENCODING_DEFAULT);
-		g_object_unref(content);
-		g_mime_part_set_content_object(GMIME_PART(new_node), data);
-		g_object_unref(data);
+	if(GMIME_IS_PART(new_node) && filename) {
+		FILE* fp = fopen(filename, "rb");
+		if(!fp) return NULL;
+		fseek(fp, 0, SEEK_END);
+		int len = ftell(fp);
+		rewind(fp);
+		char* new_content = malloc(len);
+		fread(new_content, 1, len, fp);
+		fclose(fp);
+		g_mime_object_set_content_disposition(new_node, g_mime_content_disposition_new_from_string(GMIME_DISPOSITION_ATTACHMENT));
+		g_mime_part_set_filename(GMIME_PART(new_node), &strrchr(filename,'/')[1]);
+		// this is a nasty hack to determine the proper encoding. the file is first
+		// stored in the mime tree in its binary form, then the call to
+		// g_mime_object_encode sets the best encoding method. the second call
+		// to mime_model_update_content is required to actually save the data in
+		// the mime tree in the encoded (not raw binary) format
+		mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
+		g_mime_object_encode(new_node, GMIME_ENCODING_CONSTRAINT_7BIT);
+		mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
+		free(new_content);
 	}
 	g_mime_multipart_add(parent_part, new_node);
 	GtkTreeIter result;
@@ -491,13 +512,18 @@ char* mime_model_part_content(GMimePart* part) {
 		GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
 		g_mime_stream_reset(gms);
 		gint64 len = g_mime_stream_length(gms);
+		printf("image stream len: %lld\n", len);
 		const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
+		printf("image c-e %s\n", content_encoding);
 		int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
 		str = malloc(header_length + len + 1);
 		sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
 		g_mime_stream_read(gms, &str[header_length], len);
 		str[header_length + len] = '\0';
 
+		FILE* tmp = fopen("/tmp/image.base64", "wb");
+		fwrite(&str[header_length], 1, len, tmp);
+		fclose(tmp);
 	}
 
 		return str;
