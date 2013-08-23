@@ -351,9 +351,6 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	mime_model_reparse(m);
 	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
-
-	mime_model_write_to_file(m, "/tmp/test");
-	printf("m=%p\n", m);
 	return m;
 }
 
