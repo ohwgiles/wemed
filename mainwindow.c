@@ -20,6 +20,7 @@ struct WemedWindow_S {
 	GtkWidget* root_window;
 	GtkWidget* view;
 	GtkWidget* panel;
+	GtkWidget* show_html_source;
 	char* filename;
 	gboolean dirty;
 	GMimeObject* current_part;
@@ -41,6 +42,13 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 		(strcmp(mime_type, "text/plain") == 0)? WEMED_PANEL_DOC_TYPE_TEXT_PLAIN:
 		(strcmp(mime_type, "text/html") == 0)? WEMED_PANEL_DOC_TYPE_TEXT_HTML:
 		(strncmp(mime_type, "image/", 6) == 0)? WEMED_PANEL_DOC_TYPE_IMAGE: WEMED_PANEL_DOC_TYPE_OTHER;
+	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
+		gtk_widget_set_sensitive(w->show_html_source, TRUE);
+		wemed_panel_show_source(WEMED_PANEL(w->panel), gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(w->show_html_source)));
+	} else {
+		gtk_widget_set_sensitive(w->show_html_source, FALSE);
+		wemed_panel_show_source(WEMED_PANEL(w->panel), FALSE);
+	}
 	wemed_panel_load_doc(WEMED_PANEL(w->panel), type, headers, content);
 	free(headers);
 	free(content);
@@ -184,6 +192,12 @@ static gboolean menu_file_close(GtkMenuItem* item, WemedWindow* w) {
 	return TRUE;
 }
 
+static void menu_file_reload(GtkMenuItem* item, WemedWindow* w) {
+	(void) item;
+	if(menu_file_close(NULL, w) == FALSE) return;
+	wemed_window_open(w, w->filename);
+}
+
 static void menu_file_open(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; // unused
 	if(menu_file_close(NULL, w) == FALSE) return;
@@ -207,8 +221,13 @@ static void menu_file_open(GtkMenuItem* item, WemedWindow* w) {
 void menu_file_new_blank(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; // unused
 	if(menu_file_close(NULL, w) == FALSE) return;
+}
 
-
+static void menu_view_html_source(GtkCheckMenuItem* item, WemedWindow* w) {
+	register_changes(w);
+	gboolean source = gtk_check_menu_item_get_active(item);
+	wemed_panel_show_source(WEMED_PANEL(w->panel), source);
+	set_current_part(w, w->current_part);
 }
 
 static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
@@ -276,31 +295,32 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		GtkWidget* file = gtk_menu_item_new_with_mnemonic("_File");
 		GtkWidget* filemenu = gtk_menu_new();
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(file), filemenu);
-		{ // File -> New
-			GtkWidget* new = gtk_menu_item_new_with_mnemonic("_New");
-			GtkWidget* newmenu = gtk_menu_new();
-			gtk_menu_item_set_submenu(GTK_MENU_ITEM(new), newmenu);
-			{ // File -> New -> Blank Document
-				GtkWidget* blank = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
-				g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_file_new_blank), w);
-				gtk_menu_item_set_label(GTK_MENU_ITEM(blank), "_Blank Document");
-				gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), blank);
-			}
-			{ // File -> New -> Email Template
-				GtkWidget* email = gtk_menu_item_new_with_mnemonic("_Email Template");
-				gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), email);
-			}
-			{ // File -> New -> MHTML Template
-				GtkWidget* mhtml = gtk_menu_item_new_with_mnemonic("M_HTML Template");
-				gtk_menu_shell_append(GTK_MENU_SHELL(newmenu), mhtml);
-			}
-			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), new);
+		{ // File -> New Blank Document
+			GtkWidget* blank = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
+			g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_file_new_blank), w);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(blank), "New _Blank Document");
+			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), blank);
 		}
+		{ // File -> New Email Template
+			GtkWidget* email = gtk_menu_item_new_with_mnemonic("New _Email Template");
+			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), email);
+		}
+		{ // File -> New MHTML Template
+			GtkWidget* mhtml = gtk_menu_item_new_with_mnemonic("New M_HTML Template");
+			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), mhtml);
+		}
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Open
 			GtkWidget* open = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
 			g_signal_connect(G_OBJECT(open), "activate", G_CALLBACK(menu_file_open), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), open);
 		}
+		{ // File -> Revert To Saved
+			GtkWidget* open = gtk_image_menu_item_new_from_stock(GTK_STOCK_REVERT_TO_SAVED, NULL);
+			g_signal_connect(G_OBJECT(open), "activate", G_CALLBACK(menu_file_reload), w);
+			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), open);
+		}
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Save
 			GtkWidget* save = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE, NULL);
 			g_signal_connect(G_OBJECT(save), "activate", G_CALLBACK(menu_file_save), w);
@@ -311,6 +331,7 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			g_signal_connect(G_OBJECT(saveas), "activate", G_CALLBACK(menu_file_save_as), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), saveas);
 		}
+		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Close
 			GtkWidget* close = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLOSE, NULL);
 			g_signal_connect(G_OBJECT(close), "activate", G_CALLBACK(menu_file_close), w);
@@ -323,6 +344,18 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), quit);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), file);
+	}
+	{ // View
+		GtkWidget* view = gtk_menu_item_new_with_mnemonic("_View");
+		GtkWidget* viewmenu = gtk_menu_new();
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM(view), viewmenu);
+		{ // View -> HTML Source
+			w->show_html_source = gtk_check_menu_item_new_with_mnemonic("_Show HTML Source");
+			g_signal_connect(G_OBJECT(w->show_html_source), "toggled", G_CALLBACK(menu_view_html_source), w);
+			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), w->show_html_source);
+			gtk_widget_set_sensitive(w->show_html_source, FALSE);
+		}
+		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), view);
 	}
 	{ // Part
 		GtkWidget* part = gtk_menu_item_new_with_mnemonic("_Part");
@@ -378,7 +411,6 @@ gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 	// todo close old model
 	MimeModel* m = mime_model_create_from_file(filename);
 	if(!m) return FALSE;
-	wemed_panel_set_cid_table(WEMED_PANEL(w->panel), mime_model_get_cid_hash(m));
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->view), mime_model_get_gtk_model(m));
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(w->view));
 

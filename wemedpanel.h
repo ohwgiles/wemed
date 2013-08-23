@@ -36,6 +36,8 @@ void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash);
 //void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name);
 void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content);
 
+void wemed_panel_show_source(WemedPanel* wp, gboolean);
+
 char* wemed_panel_get_headers(WemedPanel* wp);
 
 char* wemed_panel_get_text_content(WemedPanel* wp, gboolean is_html);

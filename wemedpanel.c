@@ -122,12 +122,15 @@ char* wemed_panel_get_headers(WemedPanel* wp) {
 
 char* wemed_panel_get_text_content(WemedPanel* wp, gboolean is_html) {
 	GET_D(wp);
+	gboolean source_view = webkit_web_view_get_view_source_mode(WEBKIT_WEB_VIEW(d->webview));
 	WebKitDOMDocument* dom_doc = webkit_web_view_get_dom_document(WEBKIT_WEB_VIEW(d->webview));
 	WebKitDOMHTMLElement* doc_element = WEBKIT_DOM_HTML_ELEMENT(webkit_dom_document_get_document_element(dom_doc));
-	if(is_html)
-		return webkit_dom_html_element_get_outer_html(doc_element);
+	char* result;
+	if(is_html && !source_view)
+		result = webkit_dom_html_element_get_outer_html(doc_element);
 	else
-		return webkit_dom_html_element_get_inner_text(doc_element);
+		result = webkit_dom_html_element_get_inner_text(doc_element);
+	return result;
 }
 
 static void resource_request_starting_cb(WebKitWebView *web_view, WebKitWebFrame *web_frame, WebKitWebResource *web_resource, WebKitNetworkRequest *request, WebKitNetworkResponse *response, WemedPanel* wp) {
@@ -185,30 +188,6 @@ static void wemed_panel_init(WemedPanel* wp) {
 
 static void wemed_panel_class_init(WemedPanelClass* class) {
 	g_type_class_add_private(class, sizeof(WemedPanelPrivate));
-	wemed_panel_signals[WP_SIG_HEADERS] = g_signal_new(
-			"headers-changed",
-			G_TYPE_FROM_CLASS ((GObjectClass*)class),
-			G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-			0, // v-table offset
-			NULL,
-			NULL,
-			NULL, //marshaller
-			G_TYPE_NONE, // return tye
-			2, // num args
-			G_TYPE_POINTER,
-			G_TYPE_STRING); // arg types
-	wemed_panel_signals[WP_SIG_CONTENT] = g_signal_new(
-			"content-changed",
-			G_TYPE_FROM_CLASS ((GObjectClass*)class),
-			G_SIGNAL_RUN_FIRST,
-			0, // v-table offset
-			NULL,
-			NULL,
-			NULL, //marshaller
-			G_TYPE_NONE, // return tye
-			2, // num args
-			G_TYPE_POINTER,
-			G_TYPE_STRING); // arg types
 	wemed_panel_signals[WP_SIG_GET_CID] = g_signal_new(
 			"cid-requested",
 			G_TYPE_FROM_CLASS ((GObjectClass*)class),
@@ -224,11 +203,6 @@ static void wemed_panel_class_init(WemedPanelClass* class) {
 
 GtkWidget* wemed_panel_new() {
 	return g_object_new(wemed_panel_get_type(), NULL);
-}
-
-void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash) {
-	GET_D(wp);
-	//webkit_web_context_register_uri_scheme(d->ctx, "cid", cid_loading_cb, hash, NULL);
 }
 
 void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content) {
@@ -252,61 +226,9 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* he
 	gtk_widget_show(d->webview);
 
 }
-void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name) {
+void wemed_panel_show_source(WemedPanel* wp, gboolean en) {
 	GET_D(wp);
-	wemed_panel_clear(wp);
-
-d->last_part = obj;
-	if(GMIME_IS_MESSAGE(obj)) {
-		// the subparts of this will be handled instead
-		return;
-	}
-
-	char* str = g_mime_object_get_headers(obj);
-	printf("loaded headers:\n%s\n", str);
-	gtk_text_buffer_set_text(d->headertext, str, strlen(str));
-	free(str);
-
-	gtk_widget_set_sensitive(d->headerview, TRUE);
-	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
-
-	if(GMIME_IS_PART(obj)) {
-		enum { plaintext, html, image, other };
-		int type =
-			(strcmp(content_type_name, "text/plain") == 0)? plaintext:
-			(strcmp(content_type_name, "text/html") == 0)? html:
-			(strncmp(content_type_name, "image/", 6) == 0)? image: other;
-		d->html = (type == html);
-		
-		if(type < other) {
-			GMimeDataWrapper* mco = g_mime_part_get_content_object((GMimePart*)obj);
-			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
-			g_mime_stream_reset(gms);
-			gint64 len = g_mime_stream_length(gms);
-			const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding((GMimePart*)obj));
-			printf("content encoding: %s\n", content_encoding);
-			/*
-			if(type < image) { // html or text
-				char* str = malloc(len + 1);
-				g_mime_stream_read(gms, str, len);
-				str[len] = '\0';
-				webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), str, content_type_name, content_encoding, NULL);
-				free(str);
-				webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
-			} else*/ { // type == image
-				int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
-				char* str = malloc(header_length + len + 1);
-				sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
-				g_mime_stream_read(gms, &str[header_length], len);
-				str[header_length + len] = '\0';
-				webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), str);
-				free(str);
-			}
-			g_mime_stream_reset(gms);
-			gtk_widget_show(d->webview);
-		}
-
-	}
+	webkit_web_view_set_view_source_mode(WEBKIT_WEB_VIEW(d->webview), en);
 }
 
 void wemed_panel_clear(WemedPanel* wp) {
