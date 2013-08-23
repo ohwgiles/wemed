@@ -8,6 +8,7 @@
 #include <gtk/gtk.h>
 #include <gmime/gmime.h>
 #include <string.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include "mimemodel.h"
 #include "mimeapp.h"
 
@@ -23,10 +24,6 @@ GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
 	return GTK_TREE_MODEL(m->filter);
 }
 
-GHashTable* mime_model_get_cid_hash(MimeModel* m) {
-	return m->cidhash;
-}
-
 struct TreeInsertHelper {
 	MimeModel* m;
 	GtkTreeIter current;
@@ -37,7 +34,6 @@ struct TreeInsertHelper {
 
 
 GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
-#include <gdk-pixbuf/gdk-pixbuf.h>
 
 const char* mime_model_content_type(GMimeObject* obj) {
 	return g_mime_content_type_to_string(g_mime_object_get_content_type(obj));
@@ -81,9 +77,7 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 		printf("partial!\n");
 
 	} else if (GMIME_IS_MULTIPART (part)) {
-		printf("multipart!\n");
 		GMimeContentType* ct = g_mime_object_get_content_type(part);
-		printf("(%s)\n", g_mime_content_type_to_string(ct));
 		GtkIconTheme* git = gtk_icon_theme_get_default();
 		GdkPixbuf* icon = gtk_icon_theme_load_icon(git, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		gtk_tree_store_append(h->m->store, &h->child, &h->current);
@@ -98,29 +92,14 @@ static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user
 		h->current_multipart = part;
 		g_mime_multipart_foreach(GMIME_MULTIPART(part), parse_mime_segment, h);
 		h->current_multipart = up;
-		printf("leaving multipart loop\n");
 		h->current = parent;
 	} else if (GMIME_IS_PART (part)) {
-		printf("part\n");
 		// add to hash
 		const char* cid = g_mime_part_get_content_id((GMimePart*)part);
 		gtk_tree_store_append(h->m->store, &h->child, &h->current);
 		add_part_to_store(h->m->store, &h->child, part);
 		if(cid) {
-			/*
-			   GMimeDataWrapper* gdw = g_mime_part_get_content_object(part);
-			   GMimeStream* gms = g_mime_data_wrapper_get_stream(gdw);
-			   gint64 l = g_mime_stream_length(gms);
-			   struct Buffer* b = (struct Buffer*) malloc(sizeof(struct Buffer)+l);
-			//char* b = malloc(l);
-			b->len = l;
-			g_mime_stream_read(gms, b->data, l);
-			//GMimeContentType* ct = g_mime_object_get_content_type(part);
-
-			//WebKitWebResource* wr = webkit_web_resource_new(b, l, cid, g_mime_content_type_to_string(ct), g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part)), NULL);
-			 */
 			g_hash_table_insert(h->m->cidhash, strdup(cid), part);
-			//			printf("added %s at %p\n",cid, b);
 		}
 	} else {
 		printf("unknown type\n");
@@ -136,7 +115,6 @@ gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpo
 	if(GMIME_IS_PART(part)) {
 		const char* disposition = g_mime_object_get_disposition(part);
 		if(disposition && strcmp(disposition, "inline") == 0) return FALSE;
-		//		printf("found section with disposition %s\n", disposition);
 	}
 	return TRUE;
 }
@@ -154,9 +132,7 @@ gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, vo
 	struct PartFinder* p = (struct PartFinder*) user_data;
 	GMimeObject* obj = NULL;
 	gtk_tree_model_get(model, iter, MIME_MODEL_COL_OBJECT, &obj, -1);
-	printf("comparing %p with %p\n", obj, p->obj);
 	if(obj == p->obj) {
-		printf("matched!\n");
 		p->iter = *iter;
 		return TRUE;
 	}
@@ -167,21 +143,18 @@ static GtkTreeIter iter_from_obj(MimeModel* m, GMimeObject* part) {
 	struct PartFinder p;
 	p.obj = part;
 	gtk_tree_model_foreach(GTK_TREE_MODEL(m->store), find_part, &p);
-	//printf("iter_from_obj: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &p.iter)));
 	return p.iter;
 }
 
 static GMimeObject* obj_from_iter(MimeModel* m, GtkTreeIter iter) {
 	GValue v = {0};
 	gtk_tree_model_get_value(GTK_TREE_MODEL(m->store), &iter, MIME_MODEL_COL_OBJECT, &v);
-	printf("obj_from_iter: %s\n", g_mime_content_type_to_string(g_mime_object_get_content_type(g_value_get_pointer(&v))));
 	return GMIME_OBJECT(g_value_get_pointer(&v));
 }
 
 static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 	GtkTreeIter parent;
 	gtk_tree_model_iter_parent(GTK_TREE_MODEL(m->store), &parent, &child);
-	//printf("parent_node: %s\n", gtk_tree_path_to_string(gtk_tree_model_get_path(m->store, &parent)));
 	return parent;
 }
 
@@ -216,7 +189,6 @@ void mime_model_part_replace(MimeModel* m, GMimeObject* part_old, GMimeObject* p
 }
 
 GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const char* new_header) {
-	//MimeModel* m = user_data;
 	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header, strlen(new_header));
 	GMimeParser* parse = g_mime_parser_new_with_stream(memstream);
 	GMimeObject* part_new = g_mime_parser_construct_part(parse);
@@ -238,23 +210,6 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 		}
 	}
 	mime_model_part_replace(m, part_old, part_new);
-	//GMimeContentType* ct = g_mime_object_get_content_type(part_new);
-	//gtk_tree_store_set_value(m->store, &p.iter, 1, part_new);
-	//gtk_tree_store_set(m->store, &p.iter, 0, g_mime_content_type_to_string(ct), 1, part_new, -1);
-
-	// add part to mime tree
-	// ***************************
-	// at this point we could just reread the mime tree into the tree view, but as it would
-	// be speedier to just replace the relevant part and we have everything necessary, do that
-	//printf("get_iter_first result:%d\n", gtk_tree_model_get_iter_first(GTK_TREE_MODEL(m->store), p.iter));
-	//gtk_tree_model_iter_children(GTK_TREE_MODEL(m->store), p.iter, p.iter);
-	//gtk_tree_store_set(m->store, &p.iter, 0, "replacement!", 1, NULL);
-
-	//GMimePartIter* iter = g_mime_part_iter_new(part_old);
-	//printf("want to replace %s\n", g_mime_part_iter_get_path(iter));
-	//g_mime_part_iter_replace(iter, part_new);
-	//g_mime_part_iter_free(iter);
-	//mime_model_reparse(m);
 	return part_new;
 }
 
@@ -357,12 +312,9 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 gboolean write_parts_to_stream(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, gpointer data) {
 	GMimeStream* stream = (GMimeStream*) data;
 	GValue v = {0};
-	//g_value_init(&v, G_TYPE_POINTER);
 	gtk_tree_model_get_value(model, iter, MIME_MODEL_COL_OBJECT, &v);
 	GMimeObject* obj = g_value_get_pointer(&v);
 
-	//GMimeContentType* ct = g_mime_object_get_content_type(obj);
-	//printf("attempt to write part with ct %s\n", g_mime_content_type_to_string(ct));
 	g_mime_object_write_to_stream(obj, stream);
 	g_mime_stream_flush(stream);
 	g_value_unset(&v);
@@ -402,24 +354,6 @@ GMimePart* mime_model_read_part(MimeModel* m, FILE* fp, const char* content_type
 		mime_model_part_replace(m, GMIME_OBJECT(part), part_new);
 		return GMIME_PART(part_new);
 	}
-
-
-#if 0
-	{ // set up the encoding process
-	}
-
-	g_mime_stream_write_to_stream(content_stream, encoding_stream);
-
-	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
-	g_mime_stream_reset(gms);
-	GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
-	GMimeStream* stream_filter = g_mime_stream_filter_new(gms);
-	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), basic_filter);
-	GMimeStream* filestream = g_mime_stream_file_new(fp);
-	g_mime_stream_write_to_stream(stream_filter, filestream);
-	g_mime_stream_reset(gms);
-	g_object_unref(filestream);
-#endif
 }
 
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
@@ -482,8 +416,6 @@ char* mime_model_part_content(GMimePart* part) {
 
 	GMimeStream* null_stream = g_mime_stream_null_new();
 	GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
-	//GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
-	//g_mime_stream_reset(gms);
 	gint64 decoded_length = g_mime_data_wrapper_write_to_stream(mco, null_stream);
 	g_object_unref(null_stream);
 
@@ -491,17 +423,13 @@ char* mime_model_part_content(GMimePart* part) {
 		// playing some tricky games
 		str = malloc(decoded_length+1);
 		GByteArray* arr = g_byte_array_new_take((guint8*)str, decoded_length);
-
 		GMimeStream* mem_stream = g_mime_stream_mem_new_with_byte_array(arr);
-		//GMimeStream* mem_stream = g_mime_stream_mem_new();
 		g_mime_stream_mem_set_owner(GMIME_STREAM_MEM(mem_stream), FALSE);
 		g_mime_data_wrapper_write_to_stream(mco, mem_stream);
-		//GByteArray* arr = g_mime_stream_mem_get_byte_array(GMIME_STREAM_MEM(mem_stream));
 		GBytes* bytes = g_byte_array_free_to_bytes(arr);
 		gsize sz;
 		char* raw = g_bytes_unref_to_data(bytes, &sz);
 		printf("raw: %p, str: %p\n", raw, str);
-		//str = realloc(raw, sz+1);
 		str[decoded_length] = '\0';
 		g_object_unref(mem_stream);
 
@@ -509,49 +437,13 @@ char* mime_model_part_content(GMimePart* part) {
 		GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
 		g_mime_stream_reset(gms);
 		gint64 len = g_mime_stream_length(gms);
-		printf("image stream len: %lld\n", len);
 		const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
-		printf("image c-e %s\n", content_encoding);
 		int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
 		str = malloc(header_length + len + 1);
 		sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
 		g_mime_stream_read(gms, &str[header_length], len);
 		str[header_length + len] = '\0';
-
-		FILE* tmp = fopen("/tmp/image.base64", "wb");
-		fwrite(&str[header_length], 1, len, tmp);
-		fclose(tmp);
-	}
-
-		return str;
-#if 0
-	if(type < other) {
-		GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
-		GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
-		g_mime_stream_reset(gms);
-		gint64 len = g_mime_stream_length(gms);
-		const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
-		if(type < image) { // html or text
-			str = malloc(len + 1);
-			g_mime_stream_read(gms, str, len);
-			str[len] = '\0';
-			/*
-			   webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), str, content_type_name, content_encoding, NULL);
-			   free(str);
-			   webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);*/
-		} else { // type == image
-			int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
-			str = malloc(header_length + len + 1);
-			sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
-			g_mime_stream_read(gms, &str[header_length], len);
-			str[header_length + len] = '\0';
-			/*
-			   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), str);
-			   free(str);*/
-		}
-
 	}
 
 	return str;
-#endif
 }
