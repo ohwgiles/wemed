@@ -187,11 +187,22 @@ static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 void mime_model_update_content(MimeModel* m, GMimeObject* part, const char* new_content) {
 	printf("got content: %s\n", new_content);
 	GMimeDataWrapper* old = g_mime_part_get_content_object(GMIME_PART(part));
-	g_object_unref(old);
+	//g_object_unref(old);
 	GMimeStream* content = g_mime_stream_mem_new_with_buffer(new_content, strlen(new_content));
 	GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(content, g_mime_part_get_content_encoding(GMIME_PART(part)));
 	g_mime_part_set_content_object(GMIME_PART(part), data);
 	g_mime_stream_reset(content);
+}
+
+void mime_model_part_replace(MimeModel* m, GMimeObject* part_old, GMimeObject* part_new) {
+	GtkTreeIter it = iter_from_obj(m, part_old);
+
+	GtkTreeIter parent = parent_node(m, it);
+	GMimeMultipart* multipart = GMIME_MULTIPART(obj_from_iter(m, parent));
+	int index = g_mime_multipart_index_of(multipart, part_old);
+	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
+	g_object_unref(part_old_);
+	add_part_to_store(m->store, &it, part_new);
 }
 
 GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const char* new_header) {
@@ -205,6 +216,7 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 	}
 
 	if(G_OBJECT_TYPE(part_new) != G_OBJECT_TYPE(part_old)) {
+		printf("G_OBJECT_TYPE not equal: %d, %d\n", G_OBJECT_TYPE(part_new), G_OBJECT_TYPE(part_old));
 		return NULL;
 	}
 
@@ -215,16 +227,7 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 			g_mime_multipart_add(GMIME_MULTIPART(part_new), g_mime_multipart_get_part(GMIME_MULTIPART(part_old), i));
 		}
 	}
-
-	GtkTreeIter it = iter_from_obj(m, part_old);
-
-	GtkTreeIter parent = parent_node(m, it);
-	GMimeMultipart* multipart = GMIME_MULTIPART(obj_from_iter(m, parent));
-	int index = g_mime_multipart_index_of(multipart, part_old);
-	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
-	g_object_unref(part_old_);
-	add_part_to_store(m->store, &it, part_new);
-
+	mime_model_part_replace(m, part_old, part_new);
 	//GMimeContentType* ct = g_mime_object_get_content_type(part_new);
 	//gtk_tree_store_set_value(m->store, &p.iter, 1, part_new);
 	//gtk_tree_store_set(m->store, &p.iter, 0, g_mime_content_type_to_string(ct), 1, part_new, -1);
@@ -341,6 +344,55 @@ gboolean write_parts_to_stream(GtkTreeModel* model, GtkTreePath* path, GtkTreeIt
 
 void mime_model_write_part(GMimePart* part, FILE* fp) {
 	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
+	g_mime_stream_reset(gms);
+	GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
+	GMimeStream* stream_filter = g_mime_stream_filter_new(gms);
+	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), basic_filter);
+	GMimeStream* filestream = g_mime_stream_file_new(fp);
+	g_mime_stream_write_to_stream(stream_filter, filestream);
+	fflush(fp);
+	g_mime_stream_reset(gms);
+	g_object_unref(filestream);
+}
+
+void mime_model_set_part_content(GMimePart* part, FILE* fp) {
+	GMimeStream* file_stream = g_mime_stream_file_new(fp);
+	GMimeStream* encoding_stream = g_mime_stream_filter_new(file_stream);
+		GMimeStream* content_stream = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
+		GMimeFilter* encoding_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
+		g_mime_stream_filter_add(GMIME_STREAM_FILTER(encoding_stream), encoding_filter);
+		g_mime_stream_write_to_stream(content_stream, encoding_stream);
+}
+
+GMimePart* mime_model_read_part(MimeModel* m, FILE* fp, const char* content_type, GMimePart* part) {
+	GMimeStream* file_stream = g_mime_stream_file_new(fp);
+	GMimeStream* encoding_stream = g_mime_stream_filter_new(file_stream);
+
+	GMimeStream* content_stream;
+	if(part != NULL) { // the part exists already
+		GMimeStream* content_stream = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
+		GMimeFilter* encoding_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
+		g_mime_stream_filter_add(GMIME_STREAM_FILTER(encoding_stream), encoding_filter);
+		g_mime_stream_write_to_stream(content_stream, encoding_stream);
+	return part;
+	} else {
+		GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_DEFAULT, FALSE);
+		g_mime_stream_filter_add(GMIME_STREAM_FILTER(encoding_stream), encoding_filter);
+		GMimeParser* parse = g_mime_parser_new_with_stream(encoding_stream);
+		GMimeObject* part_new = g_mime_parser_construct_part(parse);
+		mime_model_part_replace(m, GMIME_OBJECT(part), part_new);
+		return GMIME_PART(part_new);
+	}
+
+
+#if 0
+	{ // set up the encoding process
+	}
+
+	g_mime_stream_write_to_stream(content_stream, encoding_stream);
+
+	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
+	g_mime_stream_reset(gms);
 	GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
 	GMimeStream* stream_filter = g_mime_stream_filter_new(gms);
 	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), basic_filter);
@@ -348,8 +400,8 @@ void mime_model_write_part(GMimePart* part, FILE* fp) {
 	g_mime_stream_write_to_stream(stream_filter, filestream);
 	g_mime_stream_reset(gms);
 	g_object_unref(filestream);
+#endif
 }
-
 
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	FILE* fp = fopen(filename, "wb");

@@ -69,13 +69,18 @@ static void register_changes(WemedWindow* w) {
 	}
 
 	char* new_headers = wemed_panel_get_headers(WEMED_PANEL(w->panel));
+	
 	if(strcmp(new_headers,g_mime_object_get_headers(w->current_part)) != 0) {
 		w->dirty = TRUE;
 		GMimeObject* new_part = mime_model_update_header(w->model, w->current_part, new_headers);
 		// a header change can cause a display change in the panel,
 		// for example changing mime type or encoding. This causes the
 		// display to be updated immediately.
-		set_current_part(w, new_part);
+		if(new_part) {
+			set_current_part(w, new_part);
+		} else {
+			printf("error: new_part is NULL\n");
+		}
 	}
 	free(new_headers);
 }
@@ -85,7 +90,7 @@ static void tree_selection_changed(MimeTree* tree, GMimeObject* obj, WemedWindow
 	set_current_part(w, obj);
 }
 
-static void open_part_with_external_app(GMimePart* part, const char* app) {
+static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const char* app) {
 	char* tmpfile = strdup("wemed-tmpfile-XXXXXX");
 	int fd = mkstemp(tmpfile);
 	FILE* fp = fdopen(fd, "wb");
@@ -98,8 +103,21 @@ static void open_part_with_external_app(GMimePart* part, const char* app) {
 	} else {
 		sprintf(buffer, "%s %s", app, tmpfile);
 	}
+	close(fd);
 	system(buffer);
 	free(buffer);
+
+	fp = fopen(tmpfile, "rb");
+	fseek(fp, 0, SEEK_END);
+	int len = ftell(fp);
+	rewind(fp);
+	char* new_content = malloc(len+1);
+	fread(new_content, 1, len, fp);
+	new_content[len] = '\0';
+	mime_model_update_content(w->model, GMIME_OBJECT(part), new_content);
+	set_current_part(w, GMIME_OBJECT(part));
+	free(new_content);
+	
 	unlink(tmpfile); // be a tidy kiwi
 }
 
@@ -213,17 +231,17 @@ static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; //unused
 	//wemed_open_part(WEMED_PANEL(w->panel), w->mime_app.exec);
 	register_changes(w);
-	open_part_with_external_app(GMIME_PART(w->current_part), w->mime_app.exec);
+	open_part_with_external_app(w, GMIME_PART(w->current_part), w->mime_app.exec);
 }
 static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
 	(void) item; //unused
 	register_changes(w);
 	const char* content_type_name = mime_model_content_type(w->current_part);
 	printf("calling open_with on type %s\n", content_type_name);
-	char* exec = open_with(NULL, content_type_name);
+	char* exec = open_with(w->root_window, content_type_name);
 	if(!exec) return;
 	//wemed_open_part(WEMED_PANEL(w->panel), exec);
-	open_part_with_external_app(GMIME_PART(w->current_part), exec);
+	open_part_with_external_app(w, GMIME_PART(w->current_part), exec);
 }
 
 static GtkWidget* build_menubar(WemedWindow* w) {

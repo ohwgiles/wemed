@@ -29,6 +29,7 @@ GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* 
 void mime_model_update_content(MimeModel*, GMimeObject* obj, const char* new_content);
 GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type, const char* content);
 void mime_model_write_part(GMimePart* part, FILE* fp);
+void mime_model_set_part_content(GMimePart* part, FILE* fp);
 gboolean mime_model_write_to_file(MimeModel* m, const char* filename);
 void mime_model_reparse(MimeModel*);
 char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data);
