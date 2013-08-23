@@ -26,7 +26,7 @@ const char* mime_model_content_type(GMimeObject* obj);
 char* mime_model_part_content(GMimePart* part);
 
 GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* new_header);
-void mime_model_update_content(MimeModel*, GMimeObject* obj, const char* new_content);
+void mime_model_update_content(MimeModel*, GMimePart* obj, const char* new_content);
 GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type, const char* content);
 void mime_model_write_part(GMimePart* part, FILE* fp);
 void mime_model_set_part_content(GMimePart* part, FILE* fp);

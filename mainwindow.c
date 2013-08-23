@@ -33,7 +33,18 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	w->current_part = obj;
 	const char* mime_type = mime_model_content_type(w->current_part);
 	printf("set current part: mime type = %s\n", mime_type);
-	wemed_panel_load_part(WEMED_PANEL(w->panel), obj, mime_type);
+	//wemed_panel_load_part(WEMED_PANEL(w->panel), obj, mime_type);
+	char* headers = g_mime_object_get_headers(part);
+	char* content = GMIME_IS_PART(part) ? mime_model_part_content(GMIME_PART(part)) : NULL;
+
+	WemedPanelDocType type =
+		(strcmp(mime_type, "text/plain") == 0)? WEMED_PANEL_DOC_TYPE_TEXT_PLAIN:
+		(strcmp(mime_type, "text/html") == 0)? WEMED_PANEL_DOC_TYPE_TEXT_HTML:
+		(strncmp(mime_type, "image/", 6) == 0)? WEMED_PANEL_DOC_TYPE_IMAGE: WEMED_PANEL_DOC_TYPE_OTHER;
+	wemed_panel_load_doc(WEMED_PANEL(w->panel), type, headers, content);
+	free(headers);
+	free(content);
+
 	free(w->mime_app.name);
 	free(w->mime_app.exec);
 	w->mime_app = get_default_mime_app(mime_type);

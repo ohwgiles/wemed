@@ -20,13 +20,21 @@ struct _WemedPanelClass {
 	GtkPanedClass parent_class;
 };
 
+typedef enum {
+	WEMED_PANEL_DOC_TYPE_TEXT_HTML,
+	WEMED_PANEL_DOC_TYPE_TEXT_PLAIN,
+	WEMED_PANEL_DOC_TYPE_IMAGE,
+	WEMED_PANEL_DOC_TYPE_OTHER
+} WemedPanelDocType;
+
 GType wemed_panel_get_type();
 
 GtkWidget* wemed_panel_new();
 
 void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash);
 
-void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name);
+//void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name);
+void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content);
 
 char* wemed_panel_get_headers(WemedPanel* wp);
 

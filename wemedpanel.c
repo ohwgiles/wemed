@@ -231,6 +231,27 @@ void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash) {
 	//webkit_web_context_register_uri_scheme(d->ctx, "cid", cid_loading_cb, hash, NULL);
 }
 
+void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content) {
+	GET_D(wp);
+	wemed_panel_clear(wp);
+
+	gtk_text_buffer_set_text(d->headertext, headers, strlen(headers));
+	gtk_widget_set_sensitive(d->headerview, TRUE);
+
+	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
+
+	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
+		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/html", NULL, NULL);
+		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
+	} else if(type == WEMED_PANEL_DOC_TYPE_TEXT_PLAIN) {
+		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/plain", NULL, NULL);
+		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
+	} else if(type == WEMED_PANEL_DOC_TYPE_IMAGE) {
+		webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), content);
+	}
+	gtk_widget_show(d->webview);
+
+}
 void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name) {
 	GET_D(wp);
 	wemed_panel_clear(wp);
@@ -263,6 +284,8 @@ d->last_part = obj;
 			g_mime_stream_reset(gms);
 			gint64 len = g_mime_stream_length(gms);
 			const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding((GMimePart*)obj));
+			printf("content encoding: %s\n", content_encoding);
+			/*
 			if(type < image) { // html or text
 				char* str = malloc(len + 1);
 				g_mime_stream_read(gms, str, len);
@@ -270,7 +293,7 @@ d->last_part = obj;
 				webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), str, content_type_name, content_encoding, NULL);
 				free(str);
 				webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
-			} else { // type == image
+			} else*/ { // type == image
 				int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
 				char* str = malloc(header_length + len + 1);
 				sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
