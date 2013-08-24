@@ -7,7 +7,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <gmime/gmime.h>
-#include <webkit2/webkit2.h>
 #include "mimeapp.h"
 #include "wemedpanel.h"
 #include "mimemodel.h"
