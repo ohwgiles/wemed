@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=0.1
+Name=Wemed MIME Editor
+Comment=View and edit complex MIME documents
+Exec=wemed %U
+Terminal=false
+Icon=wemed
+Type=Application
+Categories=Office;Email;GTK;
+MimeType=message/rfc822;application/x-mimearchive;multipart/related;

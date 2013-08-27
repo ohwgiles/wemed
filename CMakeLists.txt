@@ -19,3 +19,12 @@ add_definitions(-std=gnu99 -Wall -Wextra -Werror -Wno-error=unused-parameter -Wn
 add_executable(wemed main.c openwith.c mainwindow.c mimeapp.c mimemodel.c mimetree.c wemedpanel.c)
 target_link_libraries(wemed ${GTK3_LIBRARIES} ${WEBKITGTK3_LIBRARIES} ${GMIME26_LIBRARIES}) 
 
+install(TARGETS wemed RUNTIME DESTINATION bin)
+install(FILES res/16.png DESTINATION share/icons/hicolor/16x16/apps RENAME wemed.png)
+install(FILES res/22.png DESTINATION share/icons/hicolor/22x22/apps RENAME wemed.png)
+install(FILES res/24.png DESTINATION share/icons/hicolor/24x24/apps RENAME wemed.png)
+install(FILES res/32.png DESTINATION share/icons/hicolor/32x32/apps RENAME wemed.png)
+install(FILES res/48.png DESTINATION share/icons/hicolor/48x48/apps RENAME wemed.png)
+install(FILES res/64.png DESTINATION share/icons/hicolor/64x64/apps RENAME wemed.png)
+install(FILES res/wemed.desktop DESTINATION share/applications)
+
