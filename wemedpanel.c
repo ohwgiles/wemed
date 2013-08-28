@@ -58,16 +58,16 @@ char* wemed_panel_get_headers(WemedPanel* wp) {
 	return gtk_text_buffer_get_text(d->headertext, &start, &end, TRUE);
 }
 
-char* wemed_panel_get_text_content(WemedPanel* wp) {
+char* wemed_panel_get_content(WemedPanel* wp, gboolean as_html_source) {
 	GET_D(wp);
 	gboolean source_view = webkit_web_view_get_view_source_mode(WEBKIT_WEB_VIEW(d->webview));
 	WebKitDOMDocument* dom_doc = webkit_web_view_get_dom_document(WEBKIT_WEB_VIEW(d->webview));
 	WebKitDOMHTMLElement* doc_element = WEBKIT_DOM_HTML_ELEMENT(webkit_dom_document_get_document_element(dom_doc));
 	char* result;
-	if(source_view)
-		result = webkit_dom_html_element_get_inner_text(doc_element);
-	else
+	if(as_html_source && !source_view)
 		result = webkit_dom_html_element_get_outer_html(doc_element);
+	else
+		result = webkit_dom_html_element_get_inner_text(doc_element);
 	return result;
 }
 
@@ -144,7 +144,7 @@ GtkWidget* wemed_panel_new() {
 	return g_object_new(wemed_panel_get_type(), NULL);
 }
 
-void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content) {
+void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content, const char* charset) {
 	GET_D(wp);
 	wemed_panel_clear(wp);
 
@@ -152,12 +152,14 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* he
 	gtk_widget_set_sensitive(d->headerview, TRUE);
 
 	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
+	//WebKitWebSettings* settings = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(d->webview));
+	//g_object_set(G_OBJECT(settings), "default-encoding", charset, NULL);
 
 	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
-		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/html", NULL, NULL);
+		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/html", charset, NULL);
 		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
 	} else if(type == WEMED_PANEL_DOC_TYPE_TEXT_PLAIN) {
-		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/plain", NULL, NULL);
+		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/plain", charset, NULL);
 		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
 	} else if(type == WEMED_PANEL_DOC_TYPE_IMAGE) {
 		webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), content);

@@ -154,16 +154,32 @@ static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 
 void mime_model_update_content(MimeModel* m, GMimePart* part, const char* new_content, int len) {
 	// encode content into memstream
+	printf("saving %p!\n", part);
 	GMimeStream* encoded_content = g_mime_stream_mem_new();
 	{
-		GMimeStream* content = g_mime_stream_mem_new_with_buffer(new_content, len);
+		char* content = (char*) new_content; // const dropped so we can do a conditional free
+		const char* charset = g_mime_object_get_content_type_parameter(GMIME_OBJECT(part), "charset");
+		printf("%p charset %s\n", part, charset);
+		/*
+		if(charset && strcmp("utf8", charset) != 0) {
+			printf("save: converting %p from utf8 to %s\n", part, charset);
+			gsize sz;
+			char* converted = g_convert(new_content, len, charset, "utf8", NULL, &sz, NULL);
+			if(converted) {
+				len = sz;
+				content = converted; // now we're dealing with a string that needs to be freed
+			} else printf("Conversion failed\n");
+		}*/
+		GMimeStream* content_stream = g_mime_stream_mem_new_with_buffer(content, len);
 		GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), TRUE);
-		GMimeStream* stream_filter = g_mime_stream_filter_new(content);
+		GMimeStream* stream_filter = g_mime_stream_filter_new(content_stream);
 		g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), basic_filter);
 		g_mime_stream_write_to_stream(stream_filter, encoded_content);
 		g_object_unref(stream_filter);
 		g_object_unref(basic_filter);
-		g_object_unref(content);
+		g_object_unref(content_stream);
+		if(new_content != content)
+			free(content);
 	}
 	GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(encoded_content, g_mime_part_get_content_encoding(GMIME_PART(part)));
 	g_mime_part_set_content_object(GMIME_PART(part), data);
@@ -198,6 +214,27 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 
 	if(GMIME_IS_PART(part_new)) {
 		// set the content object of the new part to the old part
+		GMimeContentEncoding enc_old = g_mime_part_get_content_encoding(GMIME_PART(part_old));
+		GMimeContentEncoding enc_new = g_mime_part_get_content_encoding(GMIME_PART(part_new));
+		if(enc_old != enc_new) {
+			GMimeStream* new_data = g_mime_stream_mem_new();
+			GMimeFilter* decode = g_mime_filter_basic_new(enc_old, FALSE);
+			GMimeFilter* encode = g_mime_filter_basic_new(enc_new, TRUE);
+			GMimeStream* original = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(GMIME_PART(part_old)));
+			g_mime_stream_reset(original);
+			GMimeStream* filter = g_mime_stream_filter_new(original);
+			g_mime_stream_filter_add(GMIME_STREAM_FILTER(filter), decode);
+			g_mime_stream_filter_add(GMIME_STREAM_FILTER(filter), encode);
+			g_mime_stream_write_to_stream(filter, new_data);
+			g_mime_stream_reset(new_data);
+			GMimeDataWrapper* wrapper = g_mime_data_wrapper_new_with_stream(new_data, enc_new);
+			g_mime_part_set_content_object(GMIME_PART(part_new), wrapper);
+			g_object_unref(new_data);
+			g_object_unref(decode);
+			g_object_unref(encode);
+			g_object_unref(filter);
+			g_object_unref(wrapper);
+		} else
 		g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
 	} else if(GMIME_IS_MULTIPART(part_new)) {
 		// move all the mime parts from the old multipart to the new multipart
@@ -259,10 +296,8 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 	if(up != h->multipart) return;
 	
 	if(GMIME_IS_MULTIPART(part)) {
-		printf("multipart..\n");
 		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
 		add_part_to_store(h->m, &h->child, part);
-
 		h->multipart = part;
 		GtkTreeIter grandparent = h->parent;
 		h->parent = h->child;
@@ -413,35 +448,74 @@ char* mime_model_part_content(GMimePart* part) {
 		(strcmp(content_type_name, "text/html") == 0)? html:
 		(strncmp(content_type_name, "image/", 6) == 0)? image: other;
 
-	GMimeStream* null_stream = g_mime_stream_null_new();
-	GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
-	gint64 decoded_length = g_mime_data_wrapper_write_to_stream(mco, null_stream);
-	g_object_unref(null_stream);
-
 	if(type < image) {
-		// playing some tricky games
-		str = malloc(decoded_length+1);
+		// get the length of the decoded data
+		GMimeStream* null_stream = g_mime_stream_null_new();
+		GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
+		gint64 decoded_length = g_mime_data_wrapper_write_to_stream(mco, null_stream);
+		g_object_unref(null_stream);
+		// by allocating our own array we control its length
+		str = malloc(decoded_length+1); // null termination
+		// but it is a lengthy procedure to get control back
 		GByteArray* arr = g_byte_array_new_take((guint8*)str, decoded_length);
 		GMimeStream* mem_stream = g_mime_stream_mem_new_with_byte_array(arr);
 		g_mime_stream_mem_set_owner(GMIME_STREAM_MEM(mem_stream), FALSE);
 		g_mime_data_wrapper_write_to_stream(mco, mem_stream);
 		GBytes* bytes = g_byte_array_free_to_bytes(arr);
 		gsize sz;
-		char* raw = g_bytes_unref_to_data(bytes, &sz);
-		printf("raw: %p, str: %p\n", raw, str);
-		str[decoded_length] = '\0';
+		g_bytes_unref_to_data(bytes, &sz);
+		str[decoded_length] = '\0'; // can finally terminate here
 		g_object_unref(mem_stream);
-
 	} else if(type < other) {
-		GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
-		g_mime_stream_reset(gms);
-		gint64 len = g_mime_stream_length(gms);
-		const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
-		int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
-		str = malloc(header_length + len + 1);
-		sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
-		g_mime_stream_read(gms, &str[header_length], len);
-		str[header_length + len] = '\0';
+		// always return this data in base64 format so it can be displayed as a data: URI
+		GMimeContentEncoding encoding = g_mime_part_get_content_encoding(part);
+		if(encoding == GMIME_CONTENT_ENCODING_BASE64) {
+			// optimisation: no conversion required
+			GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
+			GMimeStream* gms = g_mime_data_wrapper_get_stream(mco);
+			g_mime_stream_reset(gms);
+			gint64 len = g_mime_stream_length(gms);
+			const char* content_encoding = g_mime_content_encoding_to_string(g_mime_part_get_content_encoding(part));
+			int header_length = 5 /*data:*/ + strlen(content_type_name) + 1 /*;*/ + strlen(content_encoding) + 1 /*,*/ ;
+			str = malloc(header_length + len + 1);
+			sprintf(str, "data:%s;%s,", content_type_name, content_encoding);
+			g_mime_stream_read(gms, &str[header_length], len);
+			str[header_length + len] = '\0';
+		} else {
+			// first do a dummy conversion to get space requirements
+			GMimeDataWrapper* mco = g_mime_part_get_content_object(part);
+			GMimeStream* content_stream = g_mime_data_wrapper_get_stream(mco);
+			g_mime_stream_reset(content_stream);
+			GMimeFilter* decoding_filter = g_mime_filter_basic_new(encoding, FALSE);
+			GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_BASE64, TRUE);
+			GMimeStream* stream_filter = g_mime_stream_filter_new(content_stream);
+			g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), decoding_filter);
+			g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), encoding_filter);
+			// first do a dummy conversion to get space requirements
+			GMimeStream* null_stream = g_mime_stream_null_new();
+			int len = g_mime_stream_write_to_stream(stream_filter, null_stream);
+			g_object_unref(null_stream);
+			// now do the real thing
+			g_mime_stream_reset(content_stream);
+			g_mime_stream_reset(stream_filter);
+			int header_length = 5 /*data:*/ + strlen(content_type_name) + 8 /*;base64,*/;
+			str = malloc(header_length + len + 1); // null termination
+			sprintf(str, "data:%s;base64,", content_type_name);
+			// functionise this? it's so messy
+			GByteArray* arr = g_byte_array_new_take((guint8*)&str[header_length], len);
+			GMimeStream* mem_stream = g_mime_stream_mem_new_with_byte_array(arr);
+			g_mime_stream_mem_set_owner(GMIME_STREAM_MEM(mem_stream), FALSE);
+			g_mime_stream_write_to_stream(stream_filter, mem_stream);
+			GBytes* bytes = g_byte_array_free_to_bytes(arr);
+			gsize sz;
+			g_bytes_unref_to_data(bytes, &sz);
+			str[header_length + len] = '\0'; // can finally terminate here
+			g_object_unref(decoding_filter);
+			g_object_unref(encoding_filter);
+			g_object_unref(stream_filter);
+			g_object_unref(mem_stream);
+		}
+
 	}
 
 	return str;

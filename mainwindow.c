@@ -63,7 +63,8 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 		wemed_panel_show_source(WEMED_PANEL(w->panel), FALSE);
 	}
 
-	wemed_panel_load_doc(WEMED_PANEL(w->panel), type, headers, content);
+	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
+	wemed_panel_load_doc(WEMED_PANEL(w->panel), type, headers, content, charset);
 	free(headers);
 	free(content);
 
@@ -94,7 +95,19 @@ static void register_changes(WemedWindow* w) {
 	if(GMIME_IS_PART(w->current_part)) {
 		const char* ct = mime_model_content_type(w->current_part);
 		if(strncmp(ct, "text/", 5) == 0) {
-			char* new_content = wemed_panel_get_text_content(WEMED_PANEL(w->panel));
+			gboolean as_html_source = (strcmp(ct, "text/html") == 0);
+			// new_content is in utf-8, so we have to convert it back if that's not
+			// the character encoding of this part
+			char* new_content = wemed_panel_get_content(WEMED_PANEL(w->panel), as_html_source);
+			const char* charset = g_mime_object_get_content_type_parameter(w->current_part, "charset");
+			if(charset && strcmp("utf8", charset) != 0) {
+				gsize sz;
+				char* converted = g_convert(new_content, strlen(new_content), charset, "utf8", NULL, &sz, NULL);
+				if(converted) {
+					free(new_content);
+					new_content = converted;
+				} else printf("Conversion failed\n");
+			}
 			char* old_content = mime_model_part_content(GMIME_PART(w->current_part));
 			if(strcmp(new_content, old_content) != 0) {
 				w->dirty = TRUE;

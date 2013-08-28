@@ -32,7 +32,7 @@ GType wemed_panel_get_type();
 GtkWidget* wemed_panel_new();
 
 // Loads a new MIME part into the display pane
-void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content);
+void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content, const char* charset);
 
 // Toggle between showing HTML or source
 void wemed_panel_show_source(WemedPanel* wp, gboolean);
@@ -44,7 +44,7 @@ void wemed_panel_load_remote_resources(WemedPanel* wp, gboolean en);
 char* wemed_panel_get_headers(WemedPanel* wp);
 
 // Return the (possibly modified) text or HTML-source content
-char* wemed_panel_get_text_content(WemedPanel* wp);
+char* wemed_panel_get_content(WemedPanel* wp, gboolean as_source);
 
 void wemed_panel_clear(WemedPanel* wp);
 
