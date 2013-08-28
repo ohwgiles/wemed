@@ -152,8 +152,6 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* he
 	gtk_widget_set_sensitive(d->headerview, TRUE);
 
 	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
-	//WebKitWebSettings* settings = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(d->webview));
-	//g_object_set(G_OBJECT(settings), "default-encoding", charset, NULL);
 
 	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
 		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/html", charset, NULL);
@@ -176,6 +174,12 @@ void wemed_panel_show_source(WemedPanel* wp, gboolean en) {
 void wemed_panel_load_remote_resources(WemedPanel* wp, gboolean en) {
 	GET_D(wp);
 	d->load_remote = en;
+}
+
+void wemed_panel_display_images(WemedPanel* wp, gboolean en) {
+	GET_D(wp);
+	WebKitWebSettings* settings = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(d->webview));
+	g_object_set(G_OBJECT(settings), "auto-load-images", en, NULL);
 }
 
 void wemed_panel_clear(WemedPanel* wp) {

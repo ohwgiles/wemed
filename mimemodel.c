@@ -18,6 +18,7 @@ struct MimeModel_S {
 	GHashTable* cidhash;
 	GMimeObject* message;
 	GtkIconTheme* icon_theme;
+	gboolean filter_enabled;
 };
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
@@ -25,8 +26,10 @@ GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
 }
 
 
-
-GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
+void mime_model_filter_inline(MimeModel* m, gboolean en) {
+	m->filter_enabled = en;
+	gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(m->filter));
+}
 
 const char* mime_model_content_type(GMimeObject* obj) {
 	return g_mime_content_type_to_string(g_mime_object_get_content_type(obj));
@@ -56,7 +59,8 @@ static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part
 }
 
 gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpointer user_data) {
-	return TRUE;
+	MimeModel* m = (MimeModel*) user_data;
+	if(!m->filter_enabled) return TRUE;
 	GValue v = {0};//gtk_value_new();
 	gtk_tree_model_get_value(gtm, iter, MIME_MODEL_COL_OBJECT, &v);
 	GMimeObject* part = (GMimeObject*) g_value_get_pointer(&v);
@@ -70,12 +74,13 @@ gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpo
 
 static MimeModel* mime_model_create() {
 	MimeModel* m = malloc(sizeof(MimeModel));
+	m->filter_enabled = 0;
 	m->icon_theme = gtk_icon_theme_get_default();
 
 	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
 	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
 	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
-	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, NULL, NULL);
+	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, m, NULL);
 
 	return m;
 }
@@ -400,7 +405,11 @@ gboolean mime_model_write_to_file(MimeModel* m, FILE* fp) {
 }
 
 void mime_model_part_remove(MimeModel* m, GMimeObject* part) {
-
+	GtkTreeIter iter = iter_from_obj(m, part);
+	GtkTreeIter parent = parent_node(m, iter);
+	GMimeMultipart* multipart = GMIME_MULTIPART(obj_from_iter(m, parent));
+	gtk_tree_store_remove(m->store, &iter);
+	g_mime_multipart_remove(multipart, part);
 }
 
 void mime_model_free(MimeModel* m) {

@@ -21,6 +21,7 @@ MimeModel* mime_model_create_email();
 MimeModel* mime_model_create_from_file(FILE* fp);
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel*);
+void mime_model_filter_inline(MimeModel*, gboolean);
 
 const char* mime_model_content_type(GMimeObject* obj);
 

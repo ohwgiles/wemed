@@ -210,6 +210,9 @@ static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
 			gtk_widget_set_sensitive(w->menu_widgets->save, FALSE);
 			free(w->filename);
 			w->filename = filename;
+			char* title = g_strdup_printf("%s - wemed", w->filename);
+			gtk_window_set_title(GTK_WINDOW(w->root_window), title);
+			g_free(title);
 			ret = TRUE;
 		} else
 			free(filename);
@@ -263,6 +266,12 @@ static gboolean menu_file_close(GtkMenuItem* item, WemedWindow* w) {
 	}
 	close_document(w);
 	return TRUE;
+}
+
+static void menu_file_quit(GtkMenuItem* item, WemedWindow* w) {
+	register_changes(w);
+	if(menu_file_close(item, w))
+		gtk_main_quit();
 }
 
 static void menu_file_reload(GtkMenuItem* item, WemedWindow* w) {
@@ -338,6 +347,16 @@ static void menu_view_html_source(GtkCheckMenuItem* item, WemedWindow* w) {
 static void menu_view_remote_resources(GtkCheckMenuItem* item, WemedWindow* w) {
 	gboolean remote = gtk_check_menu_item_get_active(item);
 	wemed_panel_load_remote_resources(WEMED_PANEL(w->panel), remote);
+}
+
+static void menu_view_display_images(GtkCheckMenuItem* item, WemedWindow* w) {
+	gboolean images = gtk_check_menu_item_get_active(item);
+	wemed_panel_display_images(WEMED_PANEL(w->panel), images);
+}
+
+static void menu_view_inline_parts(GtkCheckMenuItem* item, WemedWindow* w) {
+	gboolean inl = gtk_check_menu_item_get_active(item);
+	mime_model_filter_inline(w->model, !inl);
 }
 
 static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
@@ -495,7 +514,7 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Quit
 			GtkWidget* quit = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
-			g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(gtk_main_quit), NULL);
+			g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(menu_file_quit), NULL);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), quit);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), file);
@@ -514,6 +533,18 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			GtkWidget* remote = gtk_check_menu_item_new_with_mnemonic("_Load Remote Resources");
 			g_signal_connect(G_OBJECT(remote), "toggled", G_CALLBACK(menu_view_remote_resources), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), remote);
+		}
+		{ // View -> Display Images
+			GtkWidget* images = gtk_check_menu_item_new_with_mnemonic("_Display Images");
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(images), TRUE);
+			g_signal_connect(G_OBJECT(images), "toggled", G_CALLBACK(menu_view_display_images), w);
+			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), images);
+		}
+		{ // View -> Hide Inline Images
+			GtkWidget* inline_parts = gtk_check_menu_item_new_with_mnemonic("_Inline Parts in Tree");
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(inline_parts), TRUE);
+			g_signal_connect(G_OBJECT(inline_parts), "toggled", G_CALLBACK(menu_view_inline_parts), w);
+			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), inline_parts);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), view);
 	}
@@ -580,6 +611,9 @@ gboolean wemed_window_open(WemedWindow* w, MimeModel* m, const char* filename) {
 	w->model = m;
 	g_signal_connect(G_OBJECT(w->panel), "cid-requested", G_CALLBACK(mime_model_object_from_cid), w->model);
 	w->filename = filename ? strdup(filename): strdup("untitled.eml");
+	char* title = g_strdup_printf("%s - wemed", w->filename);
+	gtk_window_set_title(GTK_WINDOW(w->root_window), title);
+	g_free(title);
 	gtk_widget_set_sensitive(w->menu_widgets->saveas, TRUE);
 	gtk_widget_set_sensitive(w->menu_widgets->close, TRUE);
 	gtk_widget_set_sensitive(w->menu_widgets->part, FALSE);

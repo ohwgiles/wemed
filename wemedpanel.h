@@ -40,6 +40,9 @@ void wemed_panel_show_source(WemedPanel* wp, gboolean);
 // Toggle the loading of remote resources in HTML view
 void wemed_panel_load_remote_resources(WemedPanel* wp, gboolean en);
 
+// Toggle the display of images
+void wemed_panel_display_images(WemedPanel* wp, gboolean en);
+
 // Return the (possibly modified) headers
 char* wemed_panel_get_headers(WemedPanel* wp);
 
