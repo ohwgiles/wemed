@@ -9,7 +9,6 @@
 #include "mimetree.h"
 
 G_DEFINE_TYPE(MimeTree, mime_tree, GTK_TYPE_TREE_VIEW);
-#define GET_D(o) MimeTreePrivate* d = (G_TYPE_INSTANCE_GET_PRIVATE ((o), mime_tree_get_type(), MimeTreePrivate))
 
 // signals
 enum {
@@ -19,19 +18,7 @@ enum {
 
 static gint mime_tree_signals[MT_SIG_LAST] = {0};
 
-// the private elements
-typedef struct {
-	GtkWidget* webview;
-	GtkWidget* headerview;
-	GtkTextBuffer* headertext;
-	GMimeObject* last_part;
-	//WebKitWebContext* ctx;
-	GtkWidget* progress_bar;
-	gboolean html;
-} MimeTreePrivate;
-
 static void mime_tree_class_init(MimeTreeClass* class) {
-	g_type_class_add_private(class, sizeof(MimeTreePrivate));
 	mime_tree_signals[MT_SELECTION_CHANGED] = g_signal_new(
 			"selection-changed",
 			G_TYPE_FROM_CLASS ((GObjectClass*)class),
@@ -61,7 +48,6 @@ static void selection_changed(GtkTreeSelection* selection, MimeTree* mt) {
 }
 
 void mime_tree_init(MimeTree* mt) {
-	GET_D(mt);
 	GtkTreeView* tv = GTK_TREE_VIEW(mt);
 
 	GtkTreeViewColumn* col = gtk_tree_view_column_new();
@@ -80,6 +66,5 @@ void mime_tree_init(MimeTree* mt) {
 	gtk_tree_selection_set_mode(select, GTK_SELECTION_SINGLE);
 	
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(selection_changed), mt);
-
 }
 

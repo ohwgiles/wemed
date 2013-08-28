@@ -8,6 +8,7 @@
 struct MimeModel_S;
 typedef struct MimeModel_S MimeModel;
 
+// columns in the table representing a MIME part
 enum {
 	MIME_MODEL_COL_OBJECT,
 	MIME_MODEL_COL_ICON,
@@ -17,22 +18,30 @@ enum {
 
 MimeModel* mime_model_create_blank();
 MimeModel* mime_model_create_email();
-MimeModel* mime_model_create_from_file(const char*);
+MimeModel* mime_model_create_from_file(FILE* fp);
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel*);
-GHashTable* mime_model_get_cid_hash(MimeModel*);
-GMimeObject* mime_model_object_from_tree(MimeModel*, GtkTreeIter* iter);
+
 const char* mime_model_content_type(GMimeObject* obj);
 
 char* mime_model_part_content(GMimePart* part);
 
 GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* new_header);
+
 void mime_model_update_content(MimeModel*, GMimePart* obj, const char* new_content, int len);
-GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type, const char* filename);
+
+GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type);
+
+// writes a part to a file, decoding base64 etc
 void mime_model_write_part(GMimePart* part, FILE* fp);
+
 void mime_model_set_part_content(GMimePart* part, FILE* fp);
-gboolean mime_model_write_to_file(MimeModel* m, const char* filename);
-void mime_model_reparse(MimeModel*);
+
+void mime_model_part_remove(MimeModel* m, GMimeObject* part);
+
+// write the whole message to a file in MIME format
+gboolean mime_model_write_to_file(MimeModel* m, FILE* fp);
+
 char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data);
 
 void mime_model_free(MimeModel*);

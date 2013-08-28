@@ -17,6 +17,7 @@ struct MimeModel_S {
 	GtkTreeModel* filter;
 	GHashTable* cidhash;
 	GMimeObject* message;
+	GtkIconTheme* icon_theme;
 };
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
@@ -31,77 +32,28 @@ const char* mime_model_content_type(GMimeObject* obj) {
 	return g_mime_content_type_to_string(g_mime_object_get_content_type(obj));
 }
 
-static void add_part_to_store(GtkTreeStore* store, GtkTreeIter* iter, GMimeObject* part) {
-	// icon
-	GtkIconTheme* git = gtk_icon_theme_get_default();
+static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part) {
 	GdkPixbuf* icon;
 	const char* name;
 	if(GMIME_IS_PART(part)) {
 		char* icon_name = strdup(mime_model_content_type(part));
 		name = g_mime_part_get_filename(GMIME_PART(part)) ?: strdup(icon_name);
 		for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
-		icon = gtk_icon_theme_load_icon(git, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		icon = gtk_icon_theme_load_icon(m->icon_theme, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		free(icon_name);
 	} else {
-		icon = gtk_icon_theme_load_icon(git, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		icon = gtk_icon_theme_load_icon(m->icon_theme, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		name = mime_model_content_type(part);
 	}
 
 	// add to tree
-	gtk_tree_store_set(store, iter,
+	gtk_tree_store_set(m->store, iter,
 			MIME_MODEL_COL_OBJECT, part,
 			MIME_MODEL_COL_ICON, icon,
 			MIME_MODEL_COL_NAME, name,
 			-1);
 	g_object_unref(icon);
 }
-#if 0
-static void parse_mime_segment(GMimeObject *up, GMimeObject *part, gpointer user_data) {
-
-	struct TreeInsertHelper* h = (struct TreeInsertHelper*) user_data;
-	if(up != h->current_multipart) return;
-
-	if (GMIME_IS_MESSAGE_PART (part)) {
-		printf("message part...\n");
-		GMimeMessage *message;
-		GtkTreeIter parent = h->current;
-		h->current = h->child;
-		message = g_mime_message_part_get_message((GMimeMessagePart *) part);
-		g_mime_message_foreach(message, parse_mime_segment, h);
-		h->current = parent;
-	} else if (GMIME_IS_MESSAGE_PARTIAL (part)) {
-		printf("partial!\n");
-
-	} else if (GMIME_IS_MULTIPART (part)) {
-		GMimeContentType* ct = g_mime_object_get_content_type(part);
-		GtkIconTheme* git = gtk_icon_theme_get_default();
-		GdkPixbuf* icon = gtk_icon_theme_load_icon(git, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
-		gtk_tree_store_append(h->m->store, &h->child, &h->current);
-		gtk_tree_store_set(h->m->store, &h->child,
-				MIME_MODEL_COL_OBJECT, part,
-				MIME_MODEL_COL_ICON, icon,
-				MIME_MODEL_COL_NAME, g_mime_content_type_to_string(ct),
-				-1);
-		g_object_unref(icon);
-		GtkTreeIter parent = h->current;
-		h->current = h->child;
-		h->current_multipart = part;
-		g_mime_multipart_foreach(GMIME_MULTIPART(part), parse_mime_segment, h);
-		h->current_multipart = up;
-		h->current = parent;
-	} else if (GMIME_IS_PART (part)) {
-		// add to hash
-		const char* cid = g_mime_part_get_content_id((GMimePart*)part);
-		gtk_tree_store_append(h->m->store, &h->child, &h->current);
-		add_part_to_store(h->m->store, &h->child, part);
-		if(cid) {
-			g_hash_table_insert(h->m->cidhash, strdup(cid), part);
-		}
-	} else {
-		printf("unknown type\n");
-	}
-}
-#endif
 
 gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpointer user_data) {
 	return TRUE;
@@ -116,8 +68,9 @@ gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpo
 	return TRUE;
 }
 
-MimeModel* mime_model_create() {
+static MimeModel* mime_model_create() {
 	MimeModel* m = malloc(sizeof(MimeModel));
+	m->icon_theme = gtk_icon_theme_get_default();
 
 	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
 	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
@@ -129,17 +82,17 @@ MimeModel* mime_model_create() {
 
 MimeModel* mime_model_create_blank() {
 	MimeModel* m = mime_model_create();
-
+	// add a blank multipart node to the document
 	GtkTreeIter root;
 	m->message = GMIME_OBJECT(g_mime_multipart_new());
 	gtk_tree_store_append(m->store, &root, NULL);
-	add_part_to_store(m->store, &root, GMIME_OBJECT(m->message));
+	add_part_to_store(m, &root, GMIME_OBJECT(m->message));
 	return m;
 }
 
 MimeModel* mime_model_create_email() {
 	MimeModel* m = mime_model_create();
-
+	// get user and hostname to generate a sample From email address
 	char host[HOST_NAME_MAX];
 	gethostname(host, HOST_NAME_MAX);
 	char from[512];
@@ -150,23 +103,26 @@ MimeModel* mime_model_create_email() {
 	g_mime_object_append_header(m->message, "From", from);
 	g_mime_object_append_header(m->message, "MIME-Version", "1.0");
 	g_mime_object_append_header(m->message, "Subject", "(no subject)");
+	// force boundary generation
 	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
+	// add a multipart/alternative with text and html parts
 	GtkTreeIter root;
 	gtk_tree_store_append(m->store, &root, NULL);
-	add_part_to_store(m->store, &root, m->message);
-	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative", NULL);
-	mime_model_new_node(m, alternative, "text/html", NULL);
-	mime_model_new_node(m, alternative, "text/plain", NULL);
+	add_part_to_store(m, &root, m->message);
+	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative");
+	mime_model_new_node(m, alternative, "text/html");
+	mime_model_new_node(m, alternative, "text/plain");
 	return m;
 }
 
 
+// At present it seems the only way to get a GtkTreeIter from
+// a GMimeObject* is a brute-force match...
 struct PartFinder {
 	GtkTreeIter iter;
 	GMimeObject* obj;
 };
-
-gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, void* user_data) {
+static gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, void* user_data) {
 	struct PartFinder* p = (struct PartFinder*) user_data;
 	GMimeObject* obj = NULL;
 	gtk_tree_model_get(model, iter, MIME_MODEL_COL_OBJECT, &obj, -1);
@@ -223,26 +179,28 @@ void mime_model_part_replace(MimeModel* m, GMimeObject* part_old, GMimeObject* p
 	int index = g_mime_multipart_index_of(multipart, part_old);
 	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
 	g_object_unref(part_old_);
-	add_part_to_store(m->store, &it, part_new);
+	add_part_to_store(m, &it, part_new);
 }
 
+// changing the header can have large consequences; this function
+// just creates a new part based on the new header and the old contents
 GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const char* new_header) {
 	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header, strlen(new_header));
 	GMimeParser* parse = g_mime_parser_new_with_stream(memstream);
 	GMimeObject* part_new = g_mime_parser_construct_part(parse);
-	if(!part_new) {
-		printf("parsing failed\n"); // todo dialog box
+	if(!part_new)
 		return NULL;
-	}
 
-	if(G_OBJECT_TYPE(part_new) != G_OBJECT_TYPE(part_old)) {
-		printf("G_OBJECT_TYPE not equal: %d, %d\n", G_OBJECT_TYPE(part_new), G_OBJECT_TYPE(part_old));
+	// if, for example, the user attempts to change a multipart
+	// object into a part object, fail
+	if(G_OBJECT_TYPE(part_new) != G_OBJECT_TYPE(part_old))
 		return NULL;
-	}
 
 	if(GMIME_IS_PART(part_new)) {
+		// set the content object of the new part to the old part
 		g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
 	} else if(GMIME_IS_MULTIPART(part_new)) {
+		// move all the mime parts from the old multipart to the new multipart
 		for(int i = 0, n = g_mime_multipart_get_count(GMIME_MULTIPART(part_old)); i < n; ++i) {
 			g_mime_multipart_add(GMIME_MULTIPART(part_new), g_mime_multipart_get_part(GMIME_MULTIPART(part_old), i));
 		}
@@ -251,20 +209,12 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const
 	return part_new;
 }
 
-GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type_string, const char* filename) {
-	printf("parent_or_sibling: %s\n", g_mime_content_type_to_string(g_mime_object_get_content_type(parent_or_sibling)));
+GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type_string) {
 	GMimeMultipart* parent_part = NULL;
 	GtkTreeIter parent_iter;
 
 
-	GMimeContentType* content_type = NULL;
-	if(content_type_string)
-		content_type = g_mime_content_type_new_from_string(content_type_string);
-	else if(filename) {
-		char* mime_type = get_file_mime_type(filename);
-		content_type = g_mime_content_type_new_from_string(mime_type);
-		free(mime_type);
-	}
+	GMimeContentType* content_type = g_mime_content_type_new_from_string(content_type_string);
 	GMimeObject* new_node = g_mime_object_new(content_type);
 	g_object_unref(content_type);
 
@@ -282,54 +232,21 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 	}
 
 	if(GMIME_IS_PART(new_node)) {
-		if(filename) {
-			FILE* fp = fopen(filename, "rb");
-			if(!fp) return NULL;
-			fseek(fp, 0, SEEK_END);
-			int len = ftell(fp);
-			rewind(fp);
-			char* new_content = malloc(len);
-			fread(new_content, 1, len, fp);
-			fclose(fp);
+		if(strncmp(content_type_string, "text/", 5) != 0)
 			g_mime_object_set_content_disposition(new_node, g_mime_content_disposition_new_from_string(GMIME_DISPOSITION_ATTACHMENT));
-			g_mime_part_set_filename(GMIME_PART(new_node), &strrchr(filename,'/')[1]);
-			// this is a nasty hack to determine the proper encoding. the file is first
-			// stored in the mime tree in its binary form, then the call to
-			// g_mime_object_encode sets the best encoding method. the second call
-			// to mime_model_update_content is required to actually save the data in
-			// the mime tree in the encoded (not raw binary) format
-			mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
-			g_mime_object_encode(new_node, GMIME_ENCODING_CONSTRAINT_7BIT);
-			mime_model_update_content(m, GMIME_PART(new_node), new_content, len);
-			free(new_content);
-		} else {
-			GMimeStream* mem = g_mime_stream_mem_new();
-			GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(mem, GMIME_CONTENT_ENCODING_DEFAULT);
-			g_mime_part_set_content_object(GMIME_PART(new_node), data);
-			g_object_unref(data);
-			g_object_unref(mem);
-		}
+		GMimeStream* mem = g_mime_stream_mem_new();
+		GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(mem, GMIME_CONTENT_ENCODING_DEFAULT);
+		g_mime_part_set_content_object(GMIME_PART(new_node), data);
+		g_object_unref(data);
+		g_object_unref(mem);
 	}
 	g_mime_multipart_add(parent_part, new_node);
 	GtkTreeIter result;
 	gtk_tree_store_append(m->store, &result, &parent_iter);
-	add_part_to_store(m->store, &result, new_node);
+	add_part_to_store(m, &result, new_node);
 	return new_node;
 }
-#if 0
-void mime_model_reparse(MimeModel* m) {
-	struct TreeInsertHelper h = {0};
-	h.m = m;
-	gtk_tree_store_clear(m->store);/*
-	gtk_tree_store_append(m->store, &h.current, NULL);
-	gtk_tree_store_set(m->store, &h.current,
-			MIME_MODEL_COL_OBJECT, m->message,
-			MIME_MODEL_COL_NAME, m->name,
-			-1);
-	//reparse_segment(*/
-	parse_mime_segment(NULL, g_mime_message_get_mime_part(m->message), &h);
-}
-#endif
+
 struct TreeInsertHelper {
 	MimeModel* m;
 	GMimeObject* multipart;
@@ -344,7 +261,7 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 	if(GMIME_IS_MULTIPART(part)) {
 		printf("multipart..\n");
 		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
-		add_part_to_store(h->m->store, &h->child, part);
+		add_part_to_store(h->m, &h->child, part);
 
 		h->multipart = part;
 		GtkTreeIter grandparent = h->parent;
@@ -357,7 +274,7 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 		// add to hash
 		const char* cid = g_mime_part_get_content_id((GMimePart*)part);
 		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
-		add_part_to_store(h->m->store, &h->child, part);
+		add_part_to_store(h->m, &h->child, part);
 		if(cid) {
 			g_hash_table_insert(h->m->cidhash, strdup(cid), part);
 		}
@@ -366,11 +283,8 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 	}
 }
 
-MimeModel* mime_model_create_from_file(const char* filename) {
+MimeModel* mime_model_create_from_file(FILE* fp) {
 	MimeModel* m = mime_model_create();
-
-	FILE* fp = fopen(filename, "rb");
-	if(!fp) return NULL;
 
 	GMimeStream* gfs = g_mime_stream_file_new(fp);
 	if(!gfs) return NULL;
@@ -385,13 +299,12 @@ MimeModel* mime_model_create_from_file(const char* filename) {
 	struct TreeInsertHelper h = {0};
 	h.m = m;
 	gtk_tree_store_append(m->store, &h.parent, NULL);
-	add_part_to_store(m->store, &h.parent, m->message);
+	add_part_to_store(m, &h.parent, m->message);
 	if(GMIME_IS_MULTIPART(m->message)) {
 		h.multipart = m->message;
 		g_mime_multipart_foreach(GMIME_MULTIPART(m->message), populate_tree, &h);
 	}
 
-	//mime_model_reparse(m);
 	return m;
 }
 
@@ -425,13 +338,12 @@ GMimePart* mime_model_read_part(MimeModel* m, FILE* fp, const char* content_type
 	GMimeStream* file_stream = g_mime_stream_file_new(fp);
 	GMimeStream* encoding_stream = g_mime_stream_filter_new(file_stream);
 
-	GMimeStream* content_stream;
 	if(part != NULL) { // the part exists already
 		GMimeStream* content_stream = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
 		GMimeFilter* encoding_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
 		g_mime_stream_filter_add(GMIME_STREAM_FILTER(encoding_stream), encoding_filter);
 		g_mime_stream_write_to_stream(content_stream, encoding_stream);
-	return part;
+		return part;
 	} else {
 		GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_DEFAULT, FALSE);
 		g_mime_stream_filter_add(GMIME_STREAM_FILTER(encoding_stream), encoding_filter);
@@ -442,10 +354,7 @@ GMimePart* mime_model_read_part(MimeModel* m, FILE* fp, const char* content_type
 	}
 }
 
-gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
-	FILE* fp = fopen(filename, "wb");
-	if(!fp) return FALSE;
-
+gboolean mime_model_write_to_file(MimeModel* m, FILE* fp) {
 	GMimeStream* gfs = g_mime_stream_file_new(fp);
 	
 	if(!gfs) return FALSE;
@@ -453,6 +362,10 @@ gboolean mime_model_write_to_file(MimeModel* m, const char* filename) {
 	g_object_unref(gfs);
 
 	return TRUE;
+}
+
+void mime_model_part_remove(MimeModel* m, GMimeObject* part) {
+
 }
 
 void mime_model_free(MimeModel* m) {
@@ -489,6 +402,7 @@ char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer use
 		return NULL;
 	}
 }
+
 char* mime_model_part_content(GMimePart* part) {
 	enum { plaintext, html, image, other };
 	const char* content_type_name = mime_model_content_type(GMIME_OBJECT(part));
@@ -532,3 +446,4 @@ char* mime_model_part_content(GMimePart* part) {
 
 	return str;
 }
+

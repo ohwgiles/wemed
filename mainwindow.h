@@ -8,10 +8,13 @@
 struct WemedWindow_S;
 typedef struct WemedWindow_S WemedWindow;
 
-gboolean wemed_window_open(WemedWindow* w, MimeModel* m, const char* filename);
-void wemed_window_close(WemedWindow* w);
-
+// the main GTK window
 WemedWindow* wemed_window_create();
+
+// open a new MIME model
+// filename is cosmetic only
+// takes ownership of MimeModel
+gboolean wemed_window_open(WemedWindow* w, MimeModel* m, const char* filename);
 
 #endif
 

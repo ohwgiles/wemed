@@ -31,16 +31,20 @@ GType wemed_panel_get_type();
 
 GtkWidget* wemed_panel_new();
 
-void wemed_panel_set_cid_table(WemedPanel* wp, GHashTable* hash);
-
-//void wemed_panel_load_part(WemedPanel* wp, GMimeObject* obj, const char* content_type_name);
+// Loads a new MIME part into the display pane
 void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content);
 
+// Toggle between showing HTML or source
 void wemed_panel_show_source(WemedPanel* wp, gboolean);
 
+// Toggle the loading of remote resources in HTML view
+void wemed_panel_load_remote_resources(WemedPanel* wp, gboolean en);
+
+// Return the (possibly modified) headers
 char* wemed_panel_get_headers(WemedPanel* wp);
 
-char* wemed_panel_get_text_content(WemedPanel* wp, gboolean is_html);
+// Return the (possibly modified) text or HTML-source content
+char* wemed_panel_get_text_content(WemedPanel* wp);
 
 void wemed_panel_clear(WemedPanel* wp);
 
