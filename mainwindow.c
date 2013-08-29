@@ -377,8 +377,12 @@ static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	gtk_container_add(GTK_CONTAINER(content), combo);
 	gtk_widget_show_all(dialog);
-	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+		w->dirty = TRUE;
+		gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
+		gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
 		mime_model_new_node(w->model, w->current_part, gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo)));
+	}
 	gtk_widget_destroy(dialog);
 }
 
