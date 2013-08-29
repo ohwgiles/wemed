@@ -235,7 +235,6 @@ static gboolean menu_file_save(GtkMenuItem* item, WemedWindow* w) {
 			gtk_widget_set_sensitive(w->menu_widgets->revert, FALSE);
 			gtk_widget_set_sensitive(w->menu_widgets->save, FALSE);
 		} 
-		fclose(fp);
 		return ret;
 	}
 }
@@ -452,7 +451,6 @@ static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
 		FILE* fp = fopen(filename, "wb");
 		mime_model_write_part(GMIME_PART(w->current_part), fp);
 		free(filename);
-		fclose(fp);
 	}
 	gtk_widget_destroy (dialog);
 }
