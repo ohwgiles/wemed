@@ -326,7 +326,14 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 MimeModel* mime_model_create_from_file(FILE* fp) {
 	MimeModel* m = mime_model_create();
 
-	GMimeStream* gfs = g_mime_stream_file_new(fp);
+	fseek(fp, 0, SEEK_END);
+	int len = ftell(fp);
+	rewind(fp);
+	char* content = malloc(len);
+	fread(content, 1, len, fp);
+	fclose(fp);
+
+	GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content, len);
 	if(!gfs) return NULL;
 
 	GMimeParser* parser = g_mime_parser_new_with_stream(gfs);
