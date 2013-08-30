@@ -626,7 +626,13 @@ WemedWindow* wemed_window_create() {
 	WemedWindow* w = calloc(1, sizeof(WemedWindow));
 
 	w->root_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	g_signal_connect(w->root_window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+	GtkIconTheme* icon_theme = gtk_icon_theme_get_default();
+	GdkPixbuf* icon = gtk_icon_theme_load_icon(icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+	//GdkPixbuf* icon = gdk_pixbuf_new_from_file("wemed.png", NULL);
+	gtk_window_set_icon(GTK_WINDOW(w->root_window), icon);
+	gtk_window_set_position(GTK_WINDOW(w->root_window), GTK_WIN_POS_CENTER);
+	gtk_window_set_default_size(GTK_WINDOW(w->root_window), 640, 480);
+	g_signal_connect(w->root_window, "destroy", G_CALLBACK(menu_file_quit), NULL);
 	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	GtkWidget* menubar = build_menubar(w);
 
