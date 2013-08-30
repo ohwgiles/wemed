@@ -30,6 +30,7 @@ typedef struct {
 struct WemedWindow_S {
 	// widgets/view
 	GtkWidget* root_window;
+	GdkPixbuf* icon;
 	GtkWidget* mime_tree;
 	GtkWidget* panel;
 	MenuWidgets* menu_widgets;
@@ -191,6 +192,7 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	free(tmpfile);
 }
 
+
 //>>>>>>>>>> BEGIN MENU BAR CALLBACK SECTION
 
 static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
@@ -202,7 +204,7 @@ static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
 
 	gboolean ret = FALSE;
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-		char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+		char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
 		FILE* fp = fopen(filename, "wb");
 		if(fp && mime_model_write_to_file(w->model, fp)) {
 			w->dirty = FALSE;
@@ -464,6 +466,52 @@ static void menu_part_delete(GtkMenuItem* item, WemedWindow* w) {
 	mime_model_part_remove(w->model, w->current_part);
 }
 
+static void menu_help_website(GtkMenuItem* item, WemedWindow* w) {
+	gtk_show_uri(NULL, "http://wemed.ohwg.net", 0, NULL);
+}
+
+static void menu_help_headers(GtkMenuItem* item, WemedWindow* w) {
+	GtkWidget* dialog = gtk_dialog_new_with_buttons(
+			"MIME Headers",
+			GTK_WINDOW(w->root_window),
+			GTK_DIALOG_MODAL,
+			GTK_STOCK_CLOSE,
+			GTK_RESPONSE_ACCEPT,
+			NULL);
+	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+	GtkWidget* text = gtk_text_view_new();
+	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
+	static const char HEADER_INFO[] =
+		"The following are the most useful MIME headers:\n\n"
+		"To: <Name> <<email@address>>, <Name> <<email@address>>\n"
+		"cc: <Name> <<email@address>>, <Name> <<email@address>>\n"
+		"bcc: <Name> <<email@address>>, <Name> <<email@address>>\n"
+		"From: <Name> <<email@address>>\n"
+		"Subject: <subject>\n"
+		"Reply-To: <Name> <<email@address>>\n"
+		"Content-Type: <mime-type>; [charset=<charset>]\n"
+		"Content-Disposition: (attachment|inline); [filename=<filename>;]\n"
+		"Content-Transfer-Encoding: (7bit|quoted-printable|base64)\n"
+		"Content-ID: <cid>\n";
+	gtk_text_buffer_set_text(gtk_text_view_get_buffer(GTK_TEXT_VIEW(text)), HEADER_INFO, strlen(HEADER_INFO));
+	gtk_container_add(GTK_CONTAINER(content), text);
+	gtk_widget_show_all(dialog);
+	gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
+}
+
+static void menu_help_about(GtkMenuItem* item, WemedWindow* w) {
+	gtk_show_about_dialog(
+			GTK_WINDOW(w->root_window),
+			"program-name", "Wemed",
+			"version", "0.1",
+			"logo", w->icon,
+			"license-type", GTK_LICENSE_GPL_3_0,
+			"copyright", "2013 Oliver Giles",
+			"website", "http://wemed.ohwg.net",
+			NULL);
+}
+
 //<<<<<<<<<<<<<<<<<<< END MENU BAR CALLBACK SECTION
 
 static GtkWidget* build_menubar(WemedWindow* w) {
@@ -600,6 +648,28 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), m->part);
 	}
+	{ // Help
+		GtkWidget* help = gtk_menu_item_new_with_mnemonic("_Help");
+		GtkWidget* helpmenu = gtk_menu_new();
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM(help), helpmenu);
+		{ // Help -> Visit Website
+			GtkWidget* web = gtk_menu_item_new_with_mnemonic("Visit _Website");
+			gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), web);
+			g_signal_connect(G_OBJECT(web), "activate", G_CALLBACK(menu_help_website), w);
+		}
+		{ // Help -> MIME Headers
+			GtkWidget* headers = gtk_menu_item_new_with_mnemonic("MIME Headers");
+			gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), headers);
+			g_signal_connect(G_OBJECT(headers), "activate", G_CALLBACK(menu_help_headers), w);
+		}
+		gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), gtk_separator_menu_item_new());
+		{ // Help -> About
+			GtkWidget* about = gtk_menu_item_new_with_mnemonic("_About Wemed");
+			gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), about);
+			g_signal_connect(G_OBJECT(about), "activate", G_CALLBACK(menu_help_about), w);
+		}
+		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), help);
+	}
 	w->menu_widgets = m;
 
 	return menubar;
@@ -627,9 +697,8 @@ WemedWindow* wemed_window_create() {
 
 	w->root_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	GtkIconTheme* icon_theme = gtk_icon_theme_get_default();
-	GdkPixbuf* icon = gtk_icon_theme_load_icon(icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
-	//GdkPixbuf* icon = gdk_pixbuf_new_from_file("wemed.png", NULL);
-	gtk_window_set_icon(GTK_WINDOW(w->root_window), icon);
+	w->icon = gtk_icon_theme_load_icon(icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+	gtk_window_set_icon(GTK_WINDOW(w->root_window), w->icon);
 	gtk_window_set_position(GTK_WINDOW(w->root_window), GTK_WIN_POS_CENTER);
 	gtk_window_set_default_size(GTK_WINDOW(w->root_window), 640, 480);
 	g_signal_connect(w->root_window, "destroy", G_CALLBACK(menu_file_quit), NULL);
