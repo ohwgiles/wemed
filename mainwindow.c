@@ -52,8 +52,8 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	char* headers = g_mime_object_get_headers(part);
 	char* content = GMIME_IS_PART(part) ? mime_model_part_content(GMIME_PART(part)) : NULL;
 	WemedPanelDocType type =
-		(strcmp(mime_type, "text/plain") == 0)? WEMED_PANEL_DOC_TYPE_TEXT_PLAIN:
 		(strcmp(mime_type, "text/html") == 0)? WEMED_PANEL_DOC_TYPE_TEXT_HTML:
+		(strncmp(mime_type, "text/", 5) == 0)? WEMED_PANEL_DOC_TYPE_TEXT_PLAIN:
 		(strncmp(mime_type, "image/", 6) == 0)? WEMED_PANEL_DOC_TYPE_IMAGE: WEMED_PANEL_DOC_TYPE_OTHER;
 	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
 		gtk_widget_set_sensitive(w->menu_widgets->show_html_source, TRUE);

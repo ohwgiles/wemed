@@ -460,8 +460,8 @@ char* mime_model_part_content(GMimePart* part) {
 	char* str = 0;
 
 	int type =
-		(strcmp(content_type_name, "text/plain") == 0)? plaintext:
 		(strcmp(content_type_name, "text/html") == 0)? html:
+		(strncmp(content_type_name, "text/", 5) == 0)? plaintext:
 		(strncmp(content_type_name, "image/", 6) == 0)? image: other;
 
 	if(type < image) {
