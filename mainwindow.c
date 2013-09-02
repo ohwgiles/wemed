@@ -276,10 +276,14 @@ static gboolean menu_file_close(GtkMenuItem* item, WemedWindow* w) {
 	return TRUE;
 }
 
-static void menu_file_quit(GtkMenuItem* item, WemedWindow* w) {
-	register_changes(w);
-	if(menu_file_close(item, w))
-		gtk_main_quit();
+static gboolean menu_file_quit(GtkMenuItem* item, WemedWindow* w) {
+	if(menu_file_close(item, w)) // register_changes called in menu_file_close
+		return gtk_main_quit(), TRUE;
+	else return FALSE;
+}
+
+static gboolean delete_event_handler(GtkWidget* window, GdkEvent* ev, WemedWindow* w) {
+	return !menu_file_quit(NULL, w);
 }
 
 static void menu_file_reload(GtkMenuItem* item, WemedWindow* w) {
@@ -714,7 +718,7 @@ WemedWindow* wemed_window_create() {
 	gtk_window_set_icon(GTK_WINDOW(w->root_window), w->icon);
 	gtk_window_set_position(GTK_WINDOW(w->root_window), GTK_WIN_POS_CENTER);
 	gtk_window_set_default_size(GTK_WINDOW(w->root_window), 640, 480);
-	g_signal_connect(w->root_window, "destroy", G_CALLBACK(menu_file_quit), w);
+	g_signal_connect(w->root_window, "delete-event", G_CALLBACK(delete_event_handler), w);
 	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	GtkWidget* menubar = build_menubar(w);
 
