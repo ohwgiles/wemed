@@ -15,7 +15,6 @@
 struct MimeModel_S {
 	GtkTreeStore* store;
 	GtkTreeModel* filter;
-	GHashTable* cidhash;
 	GMimeObject* message;
 	GtkIconTheme* icon_theme;
 	gboolean filter_enabled;
@@ -78,7 +77,6 @@ static MimeModel* mime_model_create() {
 	m->icon_theme = gtk_icon_theme_get_default();
 
 	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
-	m->cidhash = g_hash_table_new(g_str_hash, g_str_equal);
 	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, m, NULL);
 
@@ -312,12 +310,8 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 		h->multipart = up;
 	} else if (GMIME_IS_PART (part)) {
 		// add to hash
-		const char* cid = g_mime_part_get_content_id((GMimePart*)part);
 		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
 		add_part_to_store(h->m, &h->child, part);
-		if(cid) {
-			g_hash_table_insert(h->m->cidhash, strdup(cid), part);
-		}
 	} else {
 		printf("unknown type!\n");
 	}
@@ -422,7 +416,6 @@ void mime_model_part_remove(MimeModel* m, GMimeObject* part) {
 void mime_model_free(MimeModel* m) {
 	if(m) {
 		g_object_unref(m->store);
-		g_hash_table_unref(m->cidhash);
 		g_object_unref(m->message);
 		//todo delete the filter
 		free(m);
@@ -431,8 +424,7 @@ void mime_model_free(MimeModel* m) {
 
 char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data) {
 	MimeModel* m = user_data;
-	GHashTable* hash = (GHashTable*) m->cidhash;
-	GMimePart* part = g_hash_table_lookup(hash, cid);
+	GMimePart* part = (GMimePart*)g_mime_multipart_get_subpart_from_content_id(GMIME_MULTIPART(m->message), cid);
 	if(part) {
 		GMimeContentType* ct = g_mime_object_get_content_type((GMimeObject*)part);
 		const char* content_type_name = g_mime_content_type_to_string(ct);
