@@ -146,6 +146,7 @@ static void close_document(WemedWindow* w) {
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->mime_tree), NULL);
 	mime_model_free(w->model);
 	w->model = 0;
+	gtk_widget_set_sensitive(w->mime_tree, FALSE);
 	gtk_widget_set_sensitive(w->menu_widgets->revert, FALSE);
 	gtk_widget_set_sensitive(w->menu_widgets->save, FALSE);
 	gtk_widget_set_sensitive(w->menu_widgets->saveas, FALSE);
@@ -336,6 +337,10 @@ static void menu_file_new_blank(GtkMenuItem* item, WemedWindow* w) {
 
 	w->model = m;
 	g_signal_connect(G_OBJECT(w->panel), "cid-requested", G_CALLBACK(mime_model_object_from_cid), w->model);
+	gtk_widget_set_sensitive(w->mime_tree, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->saveas, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->close, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->part, FALSE);
 	expand_mime_tree_view(w);
 }
 
@@ -349,6 +354,10 @@ static void menu_file_new_email(GtkMenuItem* item, WemedWindow* w) {
 
 	w->model = m;
 	g_signal_connect(G_OBJECT(w->panel), "cid-requested", G_CALLBACK(mime_model_object_from_cid), w->model);
+	gtk_widget_set_sensitive(w->mime_tree, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->saveas, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->close, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->part, FALSE);
 	expand_mime_tree_view(w);
 }
 
@@ -703,10 +712,11 @@ gboolean wemed_window_open(WemedWindow* w, MimeModel* m, const char* filename) {
 	char* title = g_strdup_printf("%s - wemed", w->filename);
 	gtk_window_set_title(GTK_WINDOW(w->root_window), title);
 	g_free(title);
+	gtk_widget_set_sensitive(w->mime_tree, TRUE);
 	gtk_widget_set_sensitive(w->menu_widgets->saveas, TRUE);
 	gtk_widget_set_sensitive(w->menu_widgets->close, TRUE);
 	gtk_widget_set_sensitive(w->menu_widgets->part, FALSE);
-		expand_mime_tree_view(w);
+	expand_mime_tree_view(w);
 	return TRUE;
 }
 WemedWindow* wemed_window_create() {
