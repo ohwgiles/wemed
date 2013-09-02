@@ -30,6 +30,7 @@ typedef struct {
 struct WemedWindow_S {
 	// widgets/view
 	GtkWidget* root_window;
+	GtkWidget* paned;
 	GdkPixbuf* icon;
 	GtkWidget* mime_tree;
 	GtkWidget* panel;
@@ -192,6 +193,12 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	free(tmpfile);
 }
 
+static void expand_mime_tree_view(WemedWindow* w) {
+	gint p;
+	gtk_widget_get_preferred_width(w->mime_tree, NULL, &p);
+	gtk_paned_set_position(GTK_PANED(w->paned), p);
+}
+
 
 //>>>>>>>>>> BEGIN MENU BAR CALLBACK SECTION
 
@@ -325,7 +332,9 @@ static void menu_file_new_blank(GtkMenuItem* item, WemedWindow* w) {
 
 	w->model = m;
 	g_signal_connect(G_OBJECT(w->panel), "cid-requested", G_CALLBACK(mime_model_object_from_cid), w->model);
+	expand_mime_tree_view(w);
 }
+
 
 static void menu_file_new_email(GtkMenuItem* item, WemedWindow* w) {
 	if(menu_file_close(NULL, w) == FALSE) return;
@@ -336,6 +345,7 @@ static void menu_file_new_email(GtkMenuItem* item, WemedWindow* w) {
 
 	w->model = m;
 	g_signal_connect(G_OBJECT(w->panel), "cid-requested", G_CALLBACK(mime_model_object_from_cid), w->model);
+	expand_mime_tree_view(w);
 }
 
 static void menu_view_html_source(GtkCheckMenuItem* item, WemedWindow* w) {
@@ -384,12 +394,14 @@ static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
 		gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
 		gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
 		mime_model_new_node(w->model, w->current_part, gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo)));
+		expand_mime_tree_view(w);
 	}
 	gtk_widget_destroy(dialog);
 }
 
 static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
 	mime_model_new_node(w->model, w->current_part, "text/plain");
+	expand_mime_tree_view(w);
 }
 
 static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
@@ -416,6 +428,7 @@ static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 				g_mime_part_set_filename(part, &strrchr(filename,'/')[1]);
 				mime_model_update_content(w->model, part, new_content, len);
 				free(new_content);
+				expand_mime_tree_view(w);
 			}
 		}
 		free(mime_type);
@@ -689,9 +702,9 @@ gboolean wemed_window_open(WemedWindow* w, MimeModel* m, const char* filename) {
 	gtk_widget_set_sensitive(w->menu_widgets->saveas, TRUE);
 	gtk_widget_set_sensitive(w->menu_widgets->close, TRUE);
 	gtk_widget_set_sensitive(w->menu_widgets->part, FALSE);
+		expand_mime_tree_view(w);
 	return TRUE;
 }
-
 WemedWindow* wemed_window_create() {
 	WemedWindow* w = calloc(1, sizeof(WemedWindow));
 
@@ -706,20 +719,20 @@ WemedWindow* wemed_window_create() {
 	GtkWidget* menubar = build_menubar(w);
 
 	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 3);
-	GtkWidget* hpanel = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+	w->paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
 
 	w->mime_tree = mime_tree_new();
 
 	GtkWidget* treeviewwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(treeviewwin), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(treeviewwin), w->mime_tree);
-	gtk_paned_add1(GTK_PANED(hpanel), treeviewwin);
+	gtk_paned_add1(GTK_PANED(w->paned), treeviewwin);
 	w->panel = wemed_panel_new();
-	gtk_paned_add2(GTK_PANED(hpanel), w->panel);
+	gtk_paned_add2(GTK_PANED(w->paned), w->panel);
 
 	g_signal_connect(G_OBJECT(w->mime_tree), "selection-changed", G_CALLBACK(tree_selection_changed), w);
 
-	gtk_box_pack_start(GTK_BOX(vbox), hpanel, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), w->paned, TRUE, TRUE, 0);
 
 	gtk_container_add(GTK_CONTAINER(w->root_window), vbox);
 
