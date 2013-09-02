@@ -701,7 +701,7 @@ WemedWindow* wemed_window_create() {
 	gtk_window_set_icon(GTK_WINDOW(w->root_window), w->icon);
 	gtk_window_set_position(GTK_WINDOW(w->root_window), GTK_WIN_POS_CENTER);
 	gtk_window_set_default_size(GTK_WINDOW(w->root_window), 640, 480);
-	g_signal_connect(w->root_window, "destroy", G_CALLBACK(menu_file_quit), NULL);
+	g_signal_connect(w->root_window, "destroy", G_CALLBACK(menu_file_quit), w);
 	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	GtkWidget* menubar = build_menubar(w);
 
