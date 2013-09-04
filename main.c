@@ -7,9 +7,12 @@
 #include "mimemodel.h"
 #include "mainwindow.h"
 
+GtkIconTheme* system_icon_theme = 0;
+
 int main(int argc, char** argv) {
 	gtk_init(&argc, &argv);
 	g_mime_init(0);
+	system_icon_theme = gtk_icon_theme_get_default();
 
 	WemedWindow* w = wemed_window_create();
 	if(argc == 2) {

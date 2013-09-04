@@ -14,6 +14,8 @@
 #include "mainwindow.h"
 #include "openwith.h"
 
+extern GtkIconTheme* system_icon_theme;
+
 // these menu widgets are dynamically modified throughout
 // the program lifecycle, so references are saved here. Other
 // GtkWidgets are handled by GTK.
@@ -723,8 +725,7 @@ WemedWindow* wemed_window_create() {
 	WemedWindow* w = calloc(1, sizeof(WemedWindow));
 
 	w->root_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	GtkIconTheme* icon_theme = gtk_icon_theme_get_default();
-	w->icon = gtk_icon_theme_load_icon(icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+	w->icon = gtk_icon_theme_load_icon(system_icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 	gtk_window_set_icon(GTK_WINDOW(w->root_window), w->icon);
 	gtk_window_set_position(GTK_WINDOW(w->root_window), GTK_WIN_POS_CENTER);
 	gtk_window_set_default_size(GTK_WINDOW(w->root_window), 640, 480);

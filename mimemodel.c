@@ -12,11 +12,12 @@
 #include "mimemodel.h"
 #include "mimeapp.h"
 
+extern GtkIconTheme* system_icon_theme;
+
 struct MimeModel_S {
 	GtkTreeStore* store;
 	GtkTreeModel* filter;
 	GMimeObject* message;
-	GtkIconTheme* icon_theme;
 	gboolean filter_enabled;
 };
 
@@ -41,10 +42,10 @@ static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part
 		char* icon_name = strdup(mime_model_content_type(part));
 		name = g_mime_part_get_filename(GMIME_PART(part)) ?: strdup(icon_name);
 		for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
-		icon = gtk_icon_theme_load_icon(m->icon_theme, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		icon = gtk_icon_theme_load_icon(system_icon_theme, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		free(icon_name);
 	} else {
-		icon = gtk_icon_theme_load_icon(m->icon_theme, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		icon = gtk_icon_theme_load_icon(system_icon_theme, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		name = mime_model_content_type(part);
 	}
 
@@ -74,7 +75,6 @@ gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpo
 static MimeModel* mime_model_create() {
 	MimeModel* m = malloc(sizeof(MimeModel));
 	m->filter_enabled = 0;
-	m->icon_theme = gtk_icon_theme_get_default();
 
 	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
 	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
