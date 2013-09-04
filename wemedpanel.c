@@ -144,25 +144,22 @@ GtkWidget* wemed_panel_new() {
 	return g_object_new(wemed_panel_get_type(), NULL);
 }
 
-void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content, const char* charset) {
+void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 	GET_D(wp);
 	wemed_panel_clear(wp);
 
-	gtk_text_buffer_set_text(d->headertext, headers, strlen(headers));
+	gtk_text_buffer_set_text(d->headertext, doc.headers.str, doc.headers.len);
 	gtk_widget_set_sensitive(d->headerview, TRUE);
 
 	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
-
-	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
-		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/html", charset, NULL);
+	if(strncmp(doc.content_type, "text/", 5) == 0) {
+		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), doc.content.str, doc.content_type, doc.charset, NULL);
 		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
-	} else if(type == WEMED_PANEL_DOC_TYPE_TEXT_PLAIN) {
-		webkit_web_view_load_string(WEBKIT_WEB_VIEW(d->webview), content, "text/plain", charset, NULL);
-		webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
-	} else if(type == WEMED_PANEL_DOC_TYPE_IMAGE) {
-		webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), content);
-	} else
-		return; // unhandled type!
+	} else if(doc.content.str) {
+		webkit_web_view_load_uri(WEBKIT_WEB_VIEW(d->webview), doc.content.str);
+	}
+	
+	// start the progress bar, it should be hidden on completion of load
 	gtk_widget_show(d->progress_bar);
 }
 
@@ -193,4 +190,8 @@ void wemed_panel_clear(WemedPanel* wp) {
 	gtk_text_buffer_get_end_iter(d->headertext, &end);
 	gtk_text_buffer_delete(d->headertext, &start, &end);
 	gtk_widget_set_sensitive(d->headerview, FALSE);
+}
+gboolean wemed_panel_supported_type(WemedPanel* wp, const char* mime_type) {
+	GET_D(wp);
+	return webkit_web_view_can_show_mime_type(WEBKIT_WEB_VIEW(d->webview), mime_type);
 }

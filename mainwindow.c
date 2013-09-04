@@ -50,30 +50,34 @@ struct WemedWindow_S {
 static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	w->current_part = part;
 
-	const char* mime_type = mime_model_content_type(w->current_part);
+	// enable the 'Part' menu
 	gtk_widget_set_sensitive(w->menu_widgets->part, TRUE);
-	
-	char* headers = g_mime_object_get_headers(part);
-	char* content = GMIME_IS_PART(part) ? mime_model_part_content(GMIME_PART(part)) : NULL;
-	WemedPanelDocType type =
-		(strcmp(mime_type, "text/html") == 0)? WEMED_PANEL_DOC_TYPE_TEXT_HTML:
-		(strncmp(mime_type, "text/", 5) == 0)? WEMED_PANEL_DOC_TYPE_TEXT_PLAIN:
-		(strncmp(mime_type, "image/", 6) == 0)? WEMED_PANEL_DOC_TYPE_IMAGE: WEMED_PANEL_DOC_TYPE_OTHER;
-	if(type == WEMED_PANEL_DOC_TYPE_TEXT_HTML) {
+
+	// assemble the document
+	const char* mime_type = mime_model_content_type(w->current_part);
+	// if we're displaying html, respect the "view source" menu option
+	if(strcmp(mime_type, "text/html") == 0) {
 		gtk_widget_set_sensitive(w->menu_widgets->show_html_source, TRUE);
-		wemed_panel_show_source(WEMED_PANEL(w->panel), gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(w->menu_widgets->show_html_source)));
+		gboolean show_source = gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(w->menu_widgets->show_html_source));
+		wemed_panel_show_source(WEMED_PANEL(w->panel), show_source);
 	} else {
 		gtk_widget_set_sensitive(w->menu_widgets->show_html_source, FALSE);
 		wemed_panel_show_source(WEMED_PANEL(w->panel), FALSE);
 	}
-
+	
+	GString headers = mime_model_part_headers(part);
+	GString content = {0};
 	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
-	wemed_panel_load_doc(WEMED_PANEL(w->panel), type, headers, content, charset);
-	free(headers);
-	free(content);
+	if(wemed_panel_supported_type(WEMED_PANEL(w->panel), mime_type)) {
+		content = mime_model_part_content(part);
+	}
+	WemedPanelDoc doc = { mime_type, charset, headers, content };
+	wemed_panel_load_doc(WEMED_PANEL(w->panel), doc);
+	g_free(content.str);
+	g_free(headers.str);
 
 	// determine the external program for the given mime type and update the menu accordingly
-	free(w->mime_app.name);
+	free(w->mime_app.name); // clean up the last one
 	free(w->mime_app.exec);
 	w->mime_app = get_default_mime_app(mime_type);
 	if(w->mime_app.exec) {
@@ -112,15 +116,15 @@ static void register_changes(WemedWindow* w) {
 					new_content = converted;
 				} else printf("Conversion failed\n");
 			}
-			char* old_content = mime_model_part_content(GMIME_PART(w->current_part));
-			if(strcmp(new_content, old_content) != 0) {
+			GString old_content = mime_model_part_content(w->current_part);
+			if(strcmp(new_content, old_content.str) != 0) {
 				w->dirty = TRUE;
 				gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
 				gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
 				mime_model_update_content(w->model, GMIME_PART(w->current_part), new_content, strlen(new_content));
 			}
 			free(new_content);
-			free(old_content);
+			free(old_content.str);
 		}
 	}
 
@@ -544,7 +548,7 @@ static void menu_help_about(GtkMenuItem* item, WemedWindow* w) {
 
 static GtkWidget* build_menubar(WemedWindow* w) {
 	GtkWidget* menubar = gtk_menu_bar_new();
-	MenuWidgets* m = (MenuWidgets*) malloc(sizeof(MenuWidgets));
+	MenuWidgets* m = g_new(MenuWidgets, 1);
 
 	{ // File
 		GtkWidget* file = gtk_menu_item_new_with_mnemonic("_File");
@@ -722,7 +726,7 @@ gboolean wemed_window_open(WemedWindow* w, MimeModel* m, const char* filename) {
 	return TRUE;
 }
 WemedWindow* wemed_window_create() {
-	WemedWindow* w = calloc(1, sizeof(WemedWindow));
+	WemedWindow* w = g_new(WemedWindow, 1);
 
 	w->root_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	w->icon = gtk_icon_theme_load_icon(system_icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
@@ -757,4 +761,12 @@ WemedWindow* wemed_window_create() {
 
 	return w;
 }
+
+void wemed_window_free(WemedWindow* w) {
+	g_free(w->menu_widgets);
+	g_free(w);
+	free(w->mime_app.name);
+	free(w->mime_app.exec);
+}
+
 

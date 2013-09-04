@@ -20,19 +20,19 @@ struct _WemedPanelClass {
 	GtkPanedClass parent_class;
 };
 
-typedef enum {
-	WEMED_PANEL_DOC_TYPE_TEXT_HTML,
-	WEMED_PANEL_DOC_TYPE_TEXT_PLAIN,
-	WEMED_PANEL_DOC_TYPE_IMAGE,
-	WEMED_PANEL_DOC_TYPE_OTHER
-} WemedPanelDocType;
+typedef struct {
+	const char* content_type;
+	const char* charset;
+	GString headers;
+	GString content;
+} WemedPanelDoc;
 
 GType wemed_panel_get_type();
 
 GtkWidget* wemed_panel_new();
 
 // Loads a new MIME part into the display pane
-void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDocType type, const char* headers, const char* content, const char* charset);
+void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc);
 
 // Toggle between showing HTML or source
 void wemed_panel_show_source(WemedPanel* wp, gboolean);
@@ -48,6 +48,9 @@ char* wemed_panel_get_headers(WemedPanel* wp);
 
 // Return the (possibly modified) text or HTML-source content
 char* wemed_panel_get_content(WemedPanel* wp, gboolean as_source);
+
+// Whether the passed mime type can be displayed in this object
+gboolean wemed_panel_supported_type(WemedPanel* wp, const char* mime_type);
 
 void wemed_panel_clear(WemedPanel* wp);
 

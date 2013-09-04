@@ -25,7 +25,8 @@ void mime_model_filter_inline(MimeModel*, gboolean);
 
 const char* mime_model_content_type(GMimeObject* obj);
 
-char* mime_model_part_content(GMimePart* part);
+GString mime_model_part_content(GMimeObject* part);
+GString mime_model_part_headers(GMimeObject* part);
 
 GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* new_header);
 
