@@ -35,7 +35,6 @@ struct Application get_default_mime_app(const char* mimetype) {
 	n = read(pipes[0], buffer, 63);
 	if(n < 0) return a;
 	buffer[n] = '\0';
-	*strchrnul(buffer, ';') = '\0';
 	*strchrnul(buffer, '\n') = '\0';
 	char* path = malloc(sizeof("/usr/share/applications/") + strlen(buffer) + 1);
 	sprintf(path, "/usr/share/applications/%s", buffer);
@@ -50,11 +49,11 @@ struct Application get_default_mime_app(const char* mimetype) {
 	}
 	waitpid(pid, 0, 0);
 	n = read(pipes[0], buffer, 63);
-	if(n < 0) return a;
+	if(n < 0) return free(path),a;
 	buffer[n] = '\0';
 	*strchrnul(buffer, '\n') = '\0';
 	char executable_path[64] = {0};
-	sscanf(buffer, "Exec=%s", executable_path);
+	sscanf(buffer, "Exec=%48s", executable_path);
 
 	pid = fork();
 	if(pid == 0) {
@@ -66,7 +65,7 @@ struct Application get_default_mime_app(const char* mimetype) {
 	}
 	waitpid(pid, 0, 0);
 	n = read(pipes[0], buffer, 63);
-	if(n < 0) return a;
+	if(n < 0) return free(path),a;
 	buffer[n] = '\0';
 	*strchrnul(buffer, '\n') = '\0';
 	char *executable_name = &buffer[sizeof("Name=")-1];

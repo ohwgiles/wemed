@@ -21,20 +21,6 @@ struct MimeModel_S {
 	gboolean filter_enabled;
 };
 
-GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
-	return GTK_TREE_MODEL(m->filter);
-}
-
-
-void mime_model_filter_inline(MimeModel* m, gboolean en) {
-	m->filter_enabled = en;
-	gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(m->filter));
-}
-
-const char* mime_model_content_type(GMimeObject* obj) {
-	return g_mime_content_type_to_string(g_mime_object_get_content_type(obj));
-}
-
 static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part) {
 	GdkPixbuf* icon;
 	const char* name;
@@ -58,65 +44,6 @@ static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part
 	g_object_unref(icon);
 }
 
-gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpointer user_data) {
-	MimeModel* m = (MimeModel*) user_data;
-	if(!m->filter_enabled) return TRUE;
-	GValue v = {0};//gtk_value_new();
-	gtk_tree_model_get_value(gtm, iter, MIME_MODEL_COL_OBJECT, &v);
-	GMimeObject* part = (GMimeObject*) g_value_get_pointer(&v);
-	g_value_unset(&v);
-	if(GMIME_IS_PART(part)) {
-		const char* disposition = g_mime_object_get_disposition(part);
-		if(disposition && strcmp(disposition, "inline") == 0) return FALSE;
-	}
-	return TRUE;
-}
-
-static MimeModel* mime_model_create() {
-	MimeModel* m = g_new0(MimeModel, 1);
-
-	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
-	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
-	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, m, NULL);
-	m->filter_enabled = FALSE;
-
-	return m;
-}
-
-MimeModel* mime_model_create_blank() {
-	MimeModel* m = mime_model_create();
-	// add a blank multipart node to the document
-	GtkTreeIter root;
-	m->message = GMIME_OBJECT(g_mime_multipart_new());
-	gtk_tree_store_append(m->store, &root, NULL);
-	add_part_to_store(m, &root, GMIME_OBJECT(m->message));
-	return m;
-}
-
-MimeModel* mime_model_create_email() {
-	MimeModel* m = mime_model_create();
-	// get user and hostname to generate a sample From email address
-	char host[HOST_NAME_MAX];
-	gethostname(host, HOST_NAME_MAX);
-	char from[512];
-	sprintf(from, "%s <%s@%s>", getlogin(), getlogin(), host);
-	
-	m->message = GMIME_OBJECT(g_mime_multipart_new());
-	g_mime_object_append_header(m->message, "To", "Example <example@example.com>");
-	g_mime_object_append_header(m->message, "From", from);
-	g_mime_object_append_header(m->message, "MIME-Version", "1.0");
-	g_mime_object_append_header(m->message, "Subject", "(no subject)");
-	// force boundary generation
-	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
-	// add a multipart/alternative with text and html parts
-	GtkTreeIter root;
-	gtk_tree_store_append(m->store, &root, NULL);
-	add_part_to_store(m, &root, m->message);
-	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative");
-	mime_model_new_node(m, alternative, "text/html");
-	mime_model_new_node(m, alternative, "text/plain");
-	return m;
-}
 
 
 // At present it seems the only way to get a GtkTreeIter from
@@ -155,25 +82,80 @@ static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 	return parent;
 }
 
-void mime_model_update_content(MimeModel* m, GMimePart* part, const char* new_content, int len) {
+
+
+static gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpointer user_data) {
+	MimeModel* m = (MimeModel*) user_data;
+	if(!m->filter_enabled) return TRUE;
+	GMimeObject* part = obj_from_iter(m, *iter);
+	if(GMIME_IS_PART(part)) {
+		const char* disposition = g_mime_object_get_disposition(part);
+		if(disposition && strcmp(disposition, "inline") == 0) return FALSE;
+	}
+	return TRUE;
+}
+
+struct TreeInsertHelper {
+	MimeModel* m;
+	GMimeObject* multipart;
+	GtkTreeIter parent;
+	GtkTreeIter child;
+};
+static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data) {
+	struct TreeInsertHelper* h = (struct TreeInsertHelper*) user_data;
+	// halt the auto-recursion
+	if(up != h->multipart) return;
+	
+	if(GMIME_IS_MULTIPART(part)) {
+		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
+		add_part_to_store(h->m, &h->child, part);
+		h->multipart = part;
+		GtkTreeIter grandparent = h->parent;
+		h->parent = h->child;
+		// manual recurse
+		g_mime_multipart_foreach(GMIME_MULTIPART(part), populate_tree, h);
+		h->parent = grandparent;
+		h->multipart = up;
+	} else if (GMIME_IS_PART (part)) {
+		// add to hash
+		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
+		add_part_to_store(h->m, &h->child, part);
+	} else {
+		printf("unknown type!\n");
+	}
+}
+
+
+
+void mime_model_create_blank_email(MimeModel* m) {
+	// get user and hostname to generate a sample From email address
+	char host[HOST_NAME_MAX];
+	gethostname(host, HOST_NAME_MAX);
+	char from[512];
+	sprintf(from, "%s <%s@%s>", getlogin(), getlogin(), host);
+	
+	//m->message = GMIME_OBJECT(g_mime_multipart_new());
+	g_mime_object_append_header(m->message, "To", "Example <example@example.com>");
+	g_mime_object_append_header(m->message, "From", from);
+	g_mime_object_append_header(m->message, "MIME-Version", "1.0");
+	g_mime_object_append_header(m->message, "Subject", "(no subject)");
+	// force boundary generation
+	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
+	// add a multipart/alternative with text and html parts
+	GtkTreeIter root;
+	gtk_tree_store_append(m->store, &root, NULL);
+	add_part_to_store(m, &root, m->message);
+	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative");
+	mime_model_new_node(m, alternative, "text/html");
+	mime_model_new_node(m, alternative, "text/plain");
+}
+
+
+void mime_model_update_content(MimeModel* m, GMimePart* part, GString content) {
 	// encode content into memstream
-	printf("saving %p!\n", part);
 	GMimeStream* encoded_content = g_mime_stream_mem_new();
 	{
-		char* content = (char*) new_content; // const dropped so we can do a conditional free
-		const char* charset = g_mime_object_get_content_type_parameter(GMIME_OBJECT(part), "charset");
-		printf("%p charset %s\n", part, charset);
-		/*
-		if(charset && strcmp("utf8", charset) != 0) {
-			printf("save: converting %p from utf8 to %s\n", part, charset);
-			gsize sz;
-			char* converted = g_convert(new_content, len, charset, "utf8", NULL, &sz, NULL);
-			if(converted) {
-				len = sz;
-				content = converted; // now we're dealing with a string that needs to be freed
-			} else printf("Conversion failed\n");
-		}*/
-		GMimeStream* content_stream = g_mime_stream_mem_new_with_buffer(content, len);
+		GMimeStream* content_stream = g_mime_stream_mem_new_with_buffer(content.str, content.len);
 		GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), TRUE);
 		GMimeStream* stream_filter = g_mime_stream_filter_new(content_stream);
 		g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), basic_filter);
@@ -181,8 +163,6 @@ void mime_model_update_content(MimeModel* m, GMimePart* part, const char* new_co
 		g_object_unref(stream_filter);
 		g_object_unref(basic_filter);
 		g_object_unref(content_stream);
-		if(new_content != content)
-			free(content);
 	}
 	GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(encoded_content, g_mime_part_get_content_encoding(GMIME_PART(part)));
 	g_mime_part_set_content_object(GMIME_PART(part), data);
@@ -203,8 +183,8 @@ void mime_model_part_replace(MimeModel* m, GMimeObject* part_old, GMimeObject* p
 
 // changing the header can have large consequences; this function
 // just creates a new part based on the new header and the old contents
-GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, const char* new_header) {
-	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header, strlen(new_header));
+GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, GString new_header) {
+	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header.str, new_header.len);
 	GMimeParser* parse = g_mime_parser_new_with_stream(memstream);
 	GMimeObject* part_new = g_mime_parser_construct_part(parse);
 	if(!part_new)
@@ -287,56 +267,20 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 	return new_node;
 }
 
-struct TreeInsertHelper {
-	MimeModel* m;
-	GMimeObject* multipart;
-	GtkTreeIter parent;
-	GtkTreeIter child;
-};
-static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data) {
-	struct TreeInsertHelper* h = (struct TreeInsertHelper*) user_data;
-	// halt the auto-recursion
-	if(up != h->multipart) return;
-	
-	if(GMIME_IS_MULTIPART(part)) {
-		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
-		add_part_to_store(h->m, &h->child, part);
-		h->multipart = part;
-		GtkTreeIter grandparent = h->parent;
-		h->parent = h->child;
-		// manual recurse
-		g_mime_multipart_foreach(GMIME_MULTIPART(part), populate_tree, h);
-		h->parent = grandparent;
-		h->multipart = up;
-	} else if (GMIME_IS_PART (part)) {
-		// add to hash
-		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
-		add_part_to_store(h->m, &h->child, part);
-	} else {
-		printf("unknown type!\n");
-	}
-}
 
-MimeModel* mime_model_create_from_file(FILE* fp) {
-	MimeModel* m = mime_model_create();
+MimeModel* mime_model_new(GString content) {
+	MimeModel* m = g_new0(MimeModel, 1);
 
-	fseek(fp, 0, SEEK_END);
-	int len = ftell(fp);
-	rewind(fp);
-	char* content = malloc(len);
-	fread(content, 1, len, fp);
-	fclose(fp);
+	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
+	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
+	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, m, NULL);
+	m->filter_enabled = FALSE;
 
-	GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content, len);
-	if(!gfs) return NULL;
-
+	GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content.str, content.len);
 	GMimeParser* parser = g_mime_parser_new_with_stream(gfs);
-	if(!parser) return NULL;
-
 	GMimeMessage* message = g_mime_parser_construct_message(parser);
-	if(!message) return NULL;
-
 	m->message = g_mime_message_get_mime_part(message);
+
 	struct TreeInsertHelper h = {0};
 	h.m = m;
 	gtk_tree_store_append(m->store, &h.parent, NULL);
@@ -349,17 +293,19 @@ MimeModel* mime_model_create_from_file(FILE* fp) {
 	return m;
 }
 
-gboolean write_parts_to_stream(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, gpointer data) {
-	GMimeStream* stream = (GMimeStream*) data;
-	GValue v = {0};
-	gtk_tree_model_get_value(model, iter, MIME_MODEL_COL_OBJECT, &v);
-	GMimeObject* obj = g_value_get_pointer(&v);
-
-	g_mime_object_write_to_stream(obj, stream);
-	g_mime_stream_flush(stream);
-	g_value_unset(&v);
-	return FALSE;
+GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
+	return GTK_TREE_MODEL(m->filter);
 }
+
+void mime_model_filter_inline(MimeModel* m, gboolean en) {
+	m->filter_enabled = en;
+	gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(m->filter));
+}
+
+const char* mime_model_content_type(GMimeObject* obj) {
+	return g_mime_content_type_to_string(g_mime_object_get_content_type(obj));
+}
+
 
 void mime_model_write_part(GMimePart* part, FILE* fp) {
 	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
@@ -374,31 +320,10 @@ void mime_model_write_part(GMimePart* part, FILE* fp) {
 	g_object_unref(filestream);
 }
 
-
-GMimePart* mime_model_read_part(MimeModel* m, FILE* fp, const char* content_type, GMimePart* part) {
-	GMimeStream* file_stream = g_mime_stream_file_new(fp);
-	GMimeStream* encoding_stream = g_mime_stream_filter_new(file_stream);
-
-	if(part != NULL) { // the part exists already
-		GMimeStream* content_stream = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
-		GMimeFilter* encoding_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
-		g_mime_stream_filter_add(GMIME_STREAM_FILTER(encoding_stream), encoding_filter);
-		g_mime_stream_write_to_stream(content_stream, encoding_stream);
-		return part;
-	} else {
-		GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_DEFAULT, FALSE);
-		g_mime_stream_filter_add(GMIME_STREAM_FILTER(encoding_stream), encoding_filter);
-		GMimeParser* parse = g_mime_parser_new_with_stream(encoding_stream);
-		GMimeObject* part_new = g_mime_parser_construct_part(parse);
-		mime_model_part_replace(m, GMIME_OBJECT(part), part_new);
-		return GMIME_PART(part_new);
-	}
-}
-
 gboolean mime_model_write_to_file(MimeModel* m, FILE* fp) {
 	GMimeStream* gfs = g_mime_stream_file_new(fp);
-	
 	if(!gfs) return FALSE;
+
 	g_mime_object_write_to_stream(GMIME_OBJECT(m->message), gfs);
 	g_object_unref(gfs);
 

@@ -16,9 +16,8 @@ enum {
 	MIME_MODEL_NUM_COLS
 };
 
-MimeModel* mime_model_create_blank();
-MimeModel* mime_model_create_email();
-MimeModel* mime_model_create_from_file(FILE* fp);
+MimeModel* mime_model_new(GString from_content);
+void mime_model_create_blank_email(MimeModel* m);
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel*);
 void mime_model_filter_inline(MimeModel*, gboolean);
@@ -28,9 +27,9 @@ const char* mime_model_content_type(GMimeObject* obj);
 GString mime_model_part_content(GMimeObject* part);
 GString mime_model_part_headers(GMimeObject* part);
 
-GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, const char* new_header);
+GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, GString new_header);
 
-void mime_model_update_content(MimeModel*, GMimePart* obj, const char* new_content, int len);
+void mime_model_update_content(MimeModel*, GMimePart* obj, GString new_content);
 
 GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type);
 

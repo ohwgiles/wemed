@@ -35,12 +35,12 @@ static void populate_options(const char* content_type, GtkIconTheme* icontheme, 
 		_exit(0);
 	}
 	waitpid(pid, 0, 0);
+	free(grepsearch);
 	n = read(pipes[0], buffer, 20000);
-	if(n < 0) return ;
+	if(n < 0) return;
 	buffer[n] = '\0';
 	*strchrnul(buffer, '\n') = '\0';
 
-	free(grepsearch);
 
 	// now we have their .desktops in our buffer, get all the possible apps.
 	// to save execution overhead, do it in one big grep

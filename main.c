@@ -16,14 +16,12 @@ int main(int argc, char** argv) {
 
 	WemedWindow* w = wemed_window_create();
 	if(argc == 2) {
-		FILE* fp = fopen(argv[1], "rb");
-		if(fp) {
-			MimeModel* m = mime_model_create_from_file(fp);
-			wemed_window_open(w, m, argv[1]);
-		}
+		//MimeModel* m = mime_model_new(NULL);
+		wemed_window_open(w, argv[1]);
 	}
 
 	gtk_main();
+	wemed_window_free(w);
 	return 0;
 }
 

@@ -51,23 +51,27 @@ static void hide_progress_bar(GtkWidget* container, GtkWidget* bar) {
 	gtk_widget_hide(bar);
 }
 
-char* wemed_panel_get_headers(WemedPanel* wp) {
+GString wemed_panel_get_headers(WemedPanel* wp) {
 	GET_D(wp);
 	GtkTextIter start, end;
 	gtk_text_buffer_get_bounds(d->headertext, &start, &end);
-	return gtk_text_buffer_get_text(d->headertext, &start, &end, TRUE);
+	GString s;
+	s.len = gtk_text_iter_get_offset(&end);
+	s.str = gtk_text_buffer_get_text(d->headertext, &start, &end, TRUE);
+	return s;
 }
 
-char* wemed_panel_get_content(WemedPanel* wp, gboolean as_html_source) {
+GString wemed_panel_get_content(WemedPanel* wp, gboolean as_html_source) {
 	GET_D(wp);
 	gboolean source_view = webkit_web_view_get_view_source_mode(WEBKIT_WEB_VIEW(d->webview));
 	WebKitDOMDocument* dom_doc = webkit_web_view_get_dom_document(WEBKIT_WEB_VIEW(d->webview));
 	WebKitDOMHTMLElement* doc_element = WEBKIT_DOM_HTML_ELEMENT(webkit_dom_document_get_document_element(dom_doc));
-	char* result;
+	GString result;
 	if(as_html_source && !source_view)
-		result = webkit_dom_html_element_get_outer_html(doc_element);
+		result.str = webkit_dom_html_element_get_outer_html(doc_element);
 	else
-		result = webkit_dom_html_element_get_inner_text(doc_element);
+		result.str = webkit_dom_html_element_get_inner_text(doc_element);
+	result.len = strlen(result.str);
 	return result;
 }
 

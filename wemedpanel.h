@@ -44,10 +44,10 @@ void wemed_panel_load_remote_resources(WemedPanel* wp, gboolean en);
 void wemed_panel_display_images(WemedPanel* wp, gboolean en);
 
 // Return the (possibly modified) headers
-char* wemed_panel_get_headers(WemedPanel* wp);
+GString wemed_panel_get_headers(WemedPanel* wp);
 
 // Return the (possibly modified) text or HTML-source content
-char* wemed_panel_get_content(WemedPanel* wp, gboolean as_source);
+GString wemed_panel_get_content(WemedPanel* wp, gboolean as_source);
 
 // Whether the passed mime type can be displayed in this object
 gboolean wemed_panel_supported_type(WemedPanel* wp, const char* mime_type);
