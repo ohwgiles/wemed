@@ -11,6 +11,7 @@
 	a:active { text-decoration: none; color: #55f; }
 	div#main { margin: auto; width: 575px; }
 	h3 { margin-bottom: 0; }
+	div.code { margin: 10px; padding: 10px; border: 1px dashed gray; background: #eed; font-family: monospace; }
 </style>
 </head>
 <body>
@@ -26,7 +27,15 @@
 <p>Wemed is GPLv3 licensed. <a href="https://github.com/ohwgiles/wemed">Visit the github page</a></p>
 <h2>Q &amp; A</h2>
 <p><strong>How do I install wemed?</strong><br>
-There are currently no distribution-specific packages, so you need to install from source. <a href="https://github.com/ohwgiles/wemed">Visit the github page for details</a></p>
+For Arch Linux, wemed is available <a href="https://aur.archlinux.org/packages/wemed">from the AUR</a>:<br>
+<div class="code">$ yaourt -S wemed</div>
+Ubuntu and Debian packages are under development. To install from source:
+<div class="code">
+$ # first install development libraries for webkitgtk-3.0 and gmime-2.6<br>
+$ git clone https://github.com/ohwgiles/wemed.git<br>
+$ mkdir -p path/to/build &amp;&amp; cd path/to/build<br>
+$ cmake path/to/source<br>
+$ make</div>
 <p><strong>I found a bug / I want to request a feature</strong><br>
 Contact me <a href="https://github.com/ohwgiles">through github</a>. Or, fork wemed and send me a pull request</p>
 <p><strong>Command-line version?</strong><br>
