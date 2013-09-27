@@ -756,9 +756,9 @@ WemedWindow* wemed_window_create() {
 
 	gtk_container_add(GTK_CONTAINER(w->root_window), vbox);
 
-	close_document(w); // initially, all widgets should be disabled etc.
-
 	gtk_widget_show_all(w->root_window);
+
+	close_document(w); // initially, all widgets should be disabled etc.
 
 	return w;
 }
