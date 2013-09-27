@@ -106,8 +106,10 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	GString headers = mime_model_part_headers(part);
 	GString content = {0};
 	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
-	if(wemed_panel_supported_type(WEMED_PANEL(w->panel), mime_type)) {
-		content = mime_model_part_content(part);
+	if(strncmp(mime_type, "text/", 5) == 0) {
+		content = mime_model_part_content(part, FALSE);
+	} else if(wemed_panel_supported_type(WEMED_PANEL(w->panel), mime_type)) {
+		content = mime_model_part_content(part, TRUE);
 	}
 	WemedPanelDoc doc = { mime_type, charset, headers, content };
 	wemed_panel_load_doc(WEMED_PANEL(w->panel), doc);
@@ -155,7 +157,7 @@ static void register_changes(WemedWindow* w) {
 					new_content.len = sz;
 				} else printf("Conversion failed\n");
 			}
-			GString old_content = mime_model_part_content(w->current_part);
+			GString old_content = mime_model_part_content(w->current_part, FALSE);
 			if(strcmp(new_content.str, old_content.str) != 0) {
 				w->dirty = TRUE;
 				gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);

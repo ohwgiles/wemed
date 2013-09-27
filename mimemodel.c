@@ -351,7 +351,7 @@ char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer use
 	MimeModel* m = user_data;
 	GMimeObject* part = g_mime_multipart_get_subpart_from_content_id(GMIME_MULTIPART(m->message), cid);
 	// this works since &GString.str == &GString
-	return mime_model_part_content(part).str;
+	return mime_model_part_content(part, TRUE).str;
 }
 
 static gint64 stream_test_len(GMimeStream* stream) {
@@ -388,7 +388,7 @@ GString mime_model_part_headers(GMimeObject* obj) {
 	ret.len = ret.allocated_len = strlen(ret.str);
 	return ret;
 }
-GString mime_model_part_content(GMimeObject* obj) {
+GString mime_model_part_content(GMimeObject* obj, gboolean in_data_uri) {
 	GString ret = {0, 0, 0};
 	if(!GMIME_IS_PART(obj)) return ret;
 
@@ -397,17 +397,11 @@ GString mime_model_part_content(GMimeObject* obj) {
 
 	GMimeStream* source = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
 	g_mime_stream_reset(source);
+	GMimeContentEncoding encoding = g_mime_part_get_content_encoding(part);
 	// if the content type is text, return a text string
-	if(strncmp(content_type_name, "text/", 5) == 0) {
-		// get the length of the decoded data
-		gint64 decoded_length = stream_test_len(source);
-		// by allocating our own array we control its length
-		gstring_allocate(&ret, decoded_length+1); // null termination
-		write_stream_to_mem(source, ret.str, decoded_length);
-	} else { // otherwise, return data encoded in BASE64 so it can be displayed as a data: URI
+	if(in_data_uri) { // return data encoded in BASE64 so it can be displayed as a data: URI
 		// construct data:uri
 		int header_length = 5 /*data:*/ + strlen(content_type_name) + 8 /*;base64,*/;
-		GMimeContentEncoding encoding = g_mime_part_get_content_encoding(part);
 		if(encoding == GMIME_CONTENT_ENCODING_BASE64) { // optimisation: no conversion required
 			gint64 len = g_mime_stream_length(source);
 			gstring_allocate(&ret, header_length + len + 1);
@@ -433,7 +427,20 @@ GString mime_model_part_content(GMimeObject* obj) {
 			g_object_unref(encoding_filter);
 			g_object_unref(stream_filter);
 		}
-
+	} else { // convert to raw text
+		GMimeFilter* decoding_filter = g_mime_filter_basic_new(encoding, FALSE);
+		GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_BINARY, TRUE);
+		GMimeStream* stream_filter = g_mime_stream_filter_new(source);
+		g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), decoding_filter);
+		g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), encoding_filter);
+		// get the length of the decoded data
+		gint64 decoded_length = stream_test_len(stream_filter);
+		// by allocating our own array we control its length
+		gstring_allocate(&ret, decoded_length+1); // null termination
+		write_stream_to_mem(stream_filter, ret.str, decoded_length);
+		g_object_unref(decoding_filter);
+		g_object_unref(encoding_filter);
+		g_object_unref(stream_filter);
 	}
 
 	return ret;
