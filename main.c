@@ -4,6 +4,7 @@
  * for more information */
 #include <gtk/gtk.h>
 #include <gmime/gmime.h>
+#include <webkit/webkitglobals.h>
 #include "mimemodel.h"
 #include "mainwindow.h"
 
@@ -12,6 +13,7 @@ GtkIconTheme* system_icon_theme = 0;
 int main(int argc, char** argv) {
 	gtk_init(&argc, &argv);
 	system_icon_theme = gtk_icon_theme_get_default();
+	webkit_set_cache_model(WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
 	g_mime_init(0);
 
 	WemedWindow* w = wemed_window_create();
