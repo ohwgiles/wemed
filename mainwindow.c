@@ -659,7 +659,7 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Edit
-			m->menu_part_edit = gtk_menu_item_new();
+			m->menu_part_edit = gtk_menu_item_new_with_label("Edit..."); // this label will be changed
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_edit);
 			g_signal_connect(G_OBJECT(m->menu_part_edit), "activate", G_CALLBACK(menu_part_edit), w);
 		}
