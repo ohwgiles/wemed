@@ -374,7 +374,7 @@ static void menu_file_new_blank(GtkMenuItem* item, WemedWindow* w) {
 	if(confirm_close(w) == FALSE) return;
 
 	close_document(w);
-	GString s = {0};
+	GString s = {0, 0, 0};
 	set_model(w, mime_model_new(s));
 }
 

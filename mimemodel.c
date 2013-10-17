@@ -142,9 +142,6 @@ void mime_model_create_blank_email(MimeModel* m) {
 	// force boundary generation
 	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
 	// add a multipart/alternative with text and html parts
-	GtkTreeIter root;
-	gtk_tree_store_append(m->store, &root, NULL);
-	add_part_to_store(m, &root, m->message);
 	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative");
 	mime_model_new_node(m, alternative, "text/html");
 	mime_model_new_node(m, alternative, "text/plain");
@@ -276,10 +273,14 @@ MimeModel* mime_model_new(GString content) {
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, m, NULL);
 	m->filter_enabled = FALSE;
 
+	if(content.str) {
 	GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content.str, content.len);
 	GMimeParser* parser = g_mime_parser_new_with_stream(gfs);
 	GMimeMessage* message = g_mime_parser_construct_message(parser);
 	m->message = g_mime_message_get_mime_part(message);
+	} else {
+		m->message = (GMimeObject*) g_mime_multipart_new();
+	}
 
 	struct TreeInsertHelper h = {0};
 	h.m = m;
