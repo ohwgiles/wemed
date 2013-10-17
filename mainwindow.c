@@ -574,6 +574,8 @@ static void menu_help_about(GtkMenuItem* item, WemedWindow* w) {
 static GtkWidget* build_menubar(WemedWindow* w) {
 	GtkWidget* menubar = gtk_menu_bar_new();
 	MenuWidgets* m = g_new(MenuWidgets, 1);
+	GtkAccelGroup* acc = gtk_accel_group_new();
+	gtk_window_add_accel_group(GTK_WINDOW(w->root_window), acc);
 
 	{ // File
 		GtkWidget* file = gtk_menu_item_new_with_mnemonic("_File");
@@ -583,6 +585,7 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			GtkWidget* blank = gtk_menu_item_new_with_mnemonic("New _Blank Document");
 			g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_file_new_blank), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), blank);
+			gtk_widget_add_accelerator(blank, "activate", acc, GDK_KEY_n, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // File -> New Email Template
 			GtkWidget* email = gtk_menu_item_new_with_mnemonic("New _Email Template");
@@ -594,34 +597,40 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			GtkWidget* open = gtk_menu_item_new_with_mnemonic("_Open...");
 			g_signal_connect(G_OBJECT(open), "activate", G_CALLBACK(menu_file_open), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), open);
+			gtk_widget_add_accelerator(open, "activate", acc, GDK_KEY_o, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // File -> Revert To Saved
 			m->revert = gtk_menu_item_new_with_mnemonic("_Revert to Saved");
 			g_signal_connect(G_OBJECT(m->revert), "activate", G_CALLBACK(menu_file_reload), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->revert);
+			gtk_widget_add_accelerator(m->revert, "activate", acc, GDK_KEY_r, GDK_SHIFT_MASK | GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Save
 			m->save = gtk_menu_item_new_with_mnemonic("_Save");
 			g_signal_connect(G_OBJECT(m->save), "activate", G_CALLBACK(menu_file_save), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->save);
+			gtk_widget_add_accelerator(m->save, "activate", acc, GDK_KEY_s, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // File -> Save As
 			m->saveas = gtk_menu_item_new_with_mnemonic("Save _As...");
 			g_signal_connect(G_OBJECT(m->saveas), "activate", G_CALLBACK(menu_file_save_as), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->saveas);
+			gtk_widget_add_accelerator(m->saveas, "activate", acc, GDK_KEY_s, GDK_CONTROL_MASK | GDK_SHIFT_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Close
 			m->close = gtk_menu_item_new_with_mnemonic("_Close");
 			g_signal_connect(G_OBJECT(m->close), "activate", G_CALLBACK(menu_file_close), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->close);
+			gtk_widget_add_accelerator(m->close, "activate", acc, GDK_KEY_w, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Quit
 			GtkWidget* quit = gtk_menu_item_new_with_mnemonic("_Quit");
 			g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(menu_file_quit), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), quit);
+			gtk_widget_add_accelerator(quit, "activate", acc, GDK_KEY_q, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), file);
 	}
@@ -634,23 +643,27 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			g_signal_connect(G_OBJECT(m->show_html_source), "toggled", G_CALLBACK(menu_view_html_source), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), m->show_html_source);
 			gtk_widget_set_sensitive(m->show_html_source, FALSE);
+			gtk_widget_add_accelerator(m->show_html_source, "activate", acc, GDK_KEY_h, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // View -> Remote resources
 			GtkWidget* remote = gtk_check_menu_item_new_with_mnemonic("_Load Remote Resources");
 			g_signal_connect(G_OBJECT(remote), "toggled", G_CALLBACK(menu_view_remote_resources), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), remote);
+			gtk_widget_add_accelerator(remote, "activate", acc, GDK_KEY_l, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // View -> Display Images
-			GtkWidget* images = gtk_check_menu_item_new_with_mnemonic("_Display Images");
+			GtkWidget* images = gtk_check_menu_item_new_with_mnemonic("Display _Images");
 			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(images), TRUE);
 			g_signal_connect(G_OBJECT(images), "toggled", G_CALLBACK(menu_view_display_images), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), images);
+			gtk_widget_add_accelerator(images, "activate", acc, GDK_KEY_i, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // View -> Hide Inline Images
-			GtkWidget* inline_parts = gtk_check_menu_item_new_with_mnemonic("_Inline Parts in Tree");
+			GtkWidget* inline_parts = gtk_check_menu_item_new_with_mnemonic("Inline Parts in _Tree");
 			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(inline_parts), TRUE);
 			g_signal_connect(G_OBJECT(inline_parts), "toggled", G_CALLBACK(menu_view_inline_parts), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(viewmenu), inline_parts);
+			gtk_widget_add_accelerator(inline_parts, "activate", acc, GDK_KEY_t, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), view);
 	}
@@ -662,33 +675,39 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			GtkWidget* node = gtk_menu_item_new_with_mnemonic("New _Multipart Node");
 			g_signal_connect(G_OBJECT(node), "activate", G_CALLBACK(menu_part_new_node), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), node);
+			gtk_widget_add_accelerator(node, "activate", acc, GDK_KEY_m, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // Part -> New Empty Part
 			GtkWidget* empty = gtk_menu_item_new_with_mnemonic("New _Empty Part");
 			g_signal_connect(G_OBJECT(empty), "activate", G_CALLBACK(menu_part_new_empty), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), empty);
+			gtk_widget_add_accelerator(empty, "activate", acc, GDK_KEY_e, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // Part -> New From File
 			GtkWidget* fromfile = gtk_menu_item_new_with_mnemonic("New Part From _File");
 			g_signal_connect(G_OBJECT(fromfile), "activate", G_CALLBACK(menu_part_new_from_file), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), fromfile);
+			gtk_widget_add_accelerator(fromfile, "activate", acc, GDK_KEY_f, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Edit
 			m->menu_part_edit = gtk_menu_item_new_with_label("Edit..."); // this label will be changed
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_edit);
 			g_signal_connect(G_OBJECT(m->menu_part_edit), "activate", G_CALLBACK(menu_part_edit), w);
+			gtk_widget_add_accelerator(m->menu_part_edit, "activate", acc, GDK_KEY_d, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // Part -> Edit with
 			m->menu_part_edit_with = gtk_menu_item_new_with_mnemonic("Edit _With...");
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_edit_with);
 			g_signal_connect(G_OBJECT(m->menu_part_edit_with), "activate", G_CALLBACK(menu_part_edit_with), w);
+			gtk_widget_add_accelerator(m->menu_part_edit_with, "activate", acc, GDK_KEY_d, GDK_SHIFT_MASK | GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Export
-			m->menu_part_export = gtk_menu_item_new_with_mnemonic("_Export...");
+			m->menu_part_export = gtk_menu_item_new_with_mnemonic("E_xport...");
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_export);
 			g_signal_connect(G_OBJECT(m->menu_part_export), "activate", G_CALLBACK(menu_part_export), w);
+			gtk_widget_add_accelerator(m->menu_part_export, "activate", acc, GDK_KEY_x, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Delete
@@ -711,6 +730,7 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			GtkWidget* headers = gtk_menu_item_new_with_mnemonic("MIME Headers");
 			gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), headers);
 			g_signal_connect(G_OBJECT(headers), "activate", G_CALLBACK(menu_help_headers), w);
+			gtk_widget_add_accelerator(headers, "activate", acc, GDK_KEY_F1, 0, GTK_ACCEL_VISIBLE);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(helpmenu), gtk_separator_menu_item_new());
 		{ // Help -> About
