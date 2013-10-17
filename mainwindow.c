@@ -27,6 +27,9 @@ typedef struct {
 	GtkWidget* part;
 	GtkWidget* show_html_source;
 	GtkWidget* menu_part_edit;
+	GtkWidget* menu_part_edit_with;
+	GtkWidget* menu_part_export;
+	GtkWidget* menu_part_delete;
 } MenuWidgets;
 
 struct WemedWindow_S {
@@ -88,48 +91,61 @@ static void set_model(WemedWindow* w, MimeModel* m) {
 static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	w->current_part = part;
 
+	GString headers = mime_model_part_headers(part);
+	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
+	const char* mime_type = mime_model_content_type(w->current_part);
+	GString content = {0};
+
+	gtk_widget_set_sensitive(w->menu_widgets->menu_part_delete, (part != mime_model_root(w->model)));
+
 	// enable the 'Part' menu
 	gtk_widget_set_sensitive(w->menu_widgets->part, TRUE);
-
-	// assemble the document
-	const char* mime_type = mime_model_content_type(w->current_part);
-	// if we're displaying html, respect the "view source" menu option
-	if(strcmp(mime_type, "text/html") == 0) {
-		gtk_widget_set_sensitive(w->menu_widgets->show_html_source, TRUE);
-		gboolean show_source = gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(w->menu_widgets->show_html_source));
-		wemed_panel_show_source(WEMED_PANEL(w->panel), show_source);
+	if(GMIME_IS_MULTIPART(part)) {
+		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, FALSE);
+		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit_with, FALSE);
+		gtk_widget_set_sensitive(w->menu_widgets->menu_part_export, FALSE);
 	} else {
-		gtk_widget_set_sensitive(w->menu_widgets->show_html_source, FALSE);
-		wemed_panel_show_source(WEMED_PANEL(w->panel), FALSE);
+		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, TRUE);
+		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit_with, TRUE);
+		gtk_widget_set_sensitive(w->menu_widgets->menu_part_export, TRUE);
+
+		// if we're displaying html, respect the "view source" menu option
+		if(strcmp(mime_type, "text/html") == 0) {
+			gtk_widget_set_sensitive(w->menu_widgets->show_html_source, TRUE);
+			gboolean show_source = gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(w->menu_widgets->show_html_source));
+			wemed_panel_show_source(WEMED_PANEL(w->panel), show_source);
+		} else {
+			gtk_widget_set_sensitive(w->menu_widgets->show_html_source, FALSE);
+			wemed_panel_show_source(WEMED_PANEL(w->panel), FALSE);
+		}
+		
+		// fetch the part content
+		if(strncmp(mime_type, "text/", 5) == 0) {
+			content = mime_model_part_content(part, FALSE);
+		} else if(wemed_panel_supported_type(WEMED_PANEL(w->panel), mime_type)) {
+			content = mime_model_part_content(part, TRUE);
+		}
+
+		// determine the external program for the given mime type and update the menu accordingly
+		free(w->mime_app.name); // clean up the last one
+		free(w->mime_app.exec);
+		w->mime_app = get_default_mime_app(mime_type);
+		if(w->mime_app.exec) {
+			const char* editwith = "Edit with %s";
+			char* label = malloc(strlen(editwith) + strlen(w->mime_app.name));
+			sprintf(label, editwith, w->mime_app.name);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(w->menu_widgets->menu_part_edit), label);
+			free(label);
+			gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, TRUE);
+		} else {
+			gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, FALSE);
+		}
 	}
-	
-	GString headers = mime_model_part_headers(part);
-	GString content = {0};
-	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
-	if(strncmp(mime_type, "text/", 5) == 0) {
-		content = mime_model_part_content(part, FALSE);
-	} else if(wemed_panel_supported_type(WEMED_PANEL(w->panel), mime_type)) {
-		content = mime_model_part_content(part, TRUE);
-	}
+
 	WemedPanelDoc doc = { mime_type, charset, headers, content };
 	wemed_panel_load_doc(WEMED_PANEL(w->panel), doc);
 	g_free(content.str);
 	g_free(headers.str);
-
-	// determine the external program for the given mime type and update the menu accordingly
-	free(w->mime_app.name); // clean up the last one
-	free(w->mime_app.exec);
-	w->mime_app = get_default_mime_app(mime_type);
-	if(w->mime_app.exec) {
-		const char* editwith = "Edit with %s";
-		char* label = malloc(strlen(editwith) + strlen(w->mime_app.name));
-		sprintf(label, editwith, w->mime_app.name);
-		gtk_menu_item_set_label(GTK_MENU_ITEM(w->menu_widgets->menu_part_edit), label);
-		free(label);
-		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, TRUE);
-	} else {
-		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, FALSE);
-	}
 }
 
 // update the internal model based on the changes the user has made in the view.
@@ -664,21 +680,21 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 			g_signal_connect(G_OBJECT(m->menu_part_edit), "activate", G_CALLBACK(menu_part_edit), w);
 		}
 		{ // Part -> Edit with
-			GtkWidget* editwith = gtk_menu_item_new_with_mnemonic("Edit _With...");
-			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), editwith);
-			g_signal_connect(G_OBJECT(editwith), "activate", G_CALLBACK(menu_part_edit_with), w);
+			m->menu_part_edit_with = gtk_menu_item_new_with_mnemonic("Edit _With...");
+			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_edit_with);
+			g_signal_connect(G_OBJECT(m->menu_part_edit_with), "activate", G_CALLBACK(menu_part_edit_with), w);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Export
-			GtkWidget* export = gtk_menu_item_new_with_mnemonic("_Export");
-			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), export);
-			g_signal_connect(G_OBJECT(export), "activate", G_CALLBACK(menu_part_export), w);
+			m->menu_part_export = gtk_menu_item_new_with_mnemonic("_Export...");
+			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_export);
+			g_signal_connect(G_OBJECT(m->menu_part_export), "activate", G_CALLBACK(menu_part_export), w);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Delete
-			GtkWidget* delete = gtk_menu_item_new_with_mnemonic("_Delete");
-			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), delete);
-			g_signal_connect(G_OBJECT(delete), "activate", G_CALLBACK(menu_part_delete), w);
+			m->menu_part_delete = gtk_menu_item_new_with_mnemonic("_Delete");
+			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_delete);
+			g_signal_connect(G_OBJECT(m->menu_part_delete), "activate", G_CALLBACK(menu_part_delete), w);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), m->part);
 	}

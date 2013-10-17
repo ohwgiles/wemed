@@ -298,6 +298,10 @@ GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {
 	return GTK_TREE_MODEL(m->filter);
 }
 
+GMimeObject* mime_model_root(MimeModel* m) {
+	return m->message;
+}
+
 void mime_model_filter_inline(MimeModel* m, gboolean en) {
 	m->filter_enabled = en;
 	gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(m->filter));

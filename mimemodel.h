@@ -24,6 +24,8 @@ void mime_model_filter_inline(MimeModel*, gboolean);
 
 const char* mime_model_content_type(GMimeObject* obj);
 
+GMimeObject* mime_model_root(MimeModel*);
+
 GString mime_model_part_content(GMimeObject* part, gboolean in_data_uri);
 GString mime_model_part_headers(GMimeObject* part);
 
