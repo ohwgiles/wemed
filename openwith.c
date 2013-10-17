@@ -142,7 +142,7 @@ char* open_with(GtkWidget* parent, const char* content_type) {
 	gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new("Custom Application:"), FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), custom, FALSE, FALSE, 0);
 
-	GtkWidget* dialog = gtk_dialog_new_with_buttons("Open With", GTK_WINDOW(parent), GTK_DIALOG_MODAL, GTK_STOCK_OK, GTK_RESPONSE_ACCEPT, GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT, NULL);
+	GtkWidget* dialog = gtk_dialog_new_with_buttons("Open With", GTK_WINDOW(parent), GTK_DIALOG_MODAL, "_OK", GTK_RESPONSE_ACCEPT, "_Cancel", GTK_RESPONSE_REJECT, NULL);
 	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	gtk_container_add(GTK_CONTAINER(content), vbox);
 	gtk_widget_show_all(dialog);

@@ -121,11 +121,11 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	free(w->mime_app.exec);
 	w->mime_app = get_default_mime_app(mime_type);
 	if(w->mime_app.exec) {
-		const char* editwith = "_Edit with %s";
+		const char* editwith = "Edit with %s";
 		char* label = malloc(strlen(editwith) + strlen(w->mime_app.name));
 		sprintf(label, editwith, w->mime_app.name);
 		gtk_menu_item_set_label(GTK_MENU_ITEM(w->menu_widgets->menu_part_edit), label);
-		free(label); 
+		free(label);
 		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, TRUE);
 	} else {
 		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, FALSE);
@@ -246,7 +246,7 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
 	register_changes(w);
 
-	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Save File", GTK_WINDOW(w->root_window), GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT, NULL);
+	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Save File", GTK_WINDOW(w->root_window), GTK_FILE_CHOOSER_ACTION_SAVE, "_Cancel", GTK_RESPONSE_CANCEL, "_Save", GTK_RESPONSE_ACCEPT, NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
 	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), w->filename);
 
@@ -298,9 +298,9 @@ static gboolean confirm_close(WemedWindow* w) {
 				GTK_MESSAGE_QUESTION,
 				GTK_BUTTONS_NONE,
 				"File has been modified. Would you like to save it?");
-		gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_YES, GTK_RESPONSE_YES);
-		gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_NO, GTK_RESPONSE_NO);
-		gtk_dialog_add_button(GTK_DIALOG(dialog), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
+		gtk_dialog_add_button(GTK_DIALOG(dialog), "_Yes", GTK_RESPONSE_YES);
+		gtk_dialog_add_button(GTK_DIALOG(dialog), "_No", GTK_RESPONSE_NO);
+		gtk_dialog_add_button(GTK_DIALOG(dialog), "_Cancel", GTK_RESPONSE_CANCEL);
 		int ret = gtk_dialog_run(GTK_DIALOG(dialog));
 		gtk_widget_destroy(dialog);
 		if(ret == GTK_RESPONSE_YES) {
@@ -357,8 +357,8 @@ static void menu_file_open(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Open File",
 			GTK_WINDOW(w->root_window),
 			GTK_FILE_CHOOSER_ACTION_OPEN,
-			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+			"_Cancel", GTK_RESPONSE_CANCEL,
+			"_Open", GTK_RESPONSE_ACCEPT,
 			NULL);
 
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
@@ -422,9 +422,9 @@ static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
 			"Select Node Type",
 			GTK_WINDOW(w->root_window),
 			GTK_DIALOG_MODAL,
-			GTK_STOCK_OK,
+			"_OK",
 			GTK_RESPONSE_ACCEPT,
-			GTK_STOCK_CANCEL,
+			"_Cancel",
 			GTK_RESPONSE_REJECT,
 			NULL);
 	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
@@ -449,8 +449,8 @@ static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Open File",
 			GTK_WINDOW(w->root_window),
 			GTK_FILE_CHOOSER_ACTION_OPEN,
-			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-			GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+			"_Cancel", GTK_RESPONSE_CANCEL,
+			"_Open", GTK_RESPONSE_ACCEPT,
 			NULL);
 
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
@@ -485,9 +485,9 @@ static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
 			"Save File",
 			GTK_WINDOW(w->root_window),
 			GTK_FILE_CHOOSER_ACTION_SAVE,
-			GTK_STOCK_CANCEL,
+			"_Cancel",
 			GTK_RESPONSE_CANCEL,
-			GTK_STOCK_SAVE,
+			"_Save",
 			GTK_RESPONSE_ACCEPT,
 			NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
@@ -516,7 +516,7 @@ static void menu_help_headers(GtkMenuItem* item, WemedWindow* w) {
 			"MIME Headers",
 			GTK_WINDOW(w->root_window),
 			GTK_DIALOG_MODAL,
-			GTK_STOCK_CLOSE,
+			"_Close",
 			GTK_RESPONSE_ACCEPT,
 			NULL);
 	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
@@ -564,9 +564,8 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		GtkWidget* filemenu = gtk_menu_new();
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(file), filemenu);
 		{ // File -> New Blank Document
-			GtkWidget* blank = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
+			GtkWidget* blank = gtk_menu_item_new_with_mnemonic("New _Blank Document");
 			g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_file_new_blank), w);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(blank), "New _Blank Document");
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), blank);
 		}
 		{ // File -> New Email Template
@@ -576,35 +575,35 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Open
-			GtkWidget* open = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
+			GtkWidget* open = gtk_menu_item_new_with_mnemonic("_Open...");
 			g_signal_connect(G_OBJECT(open), "activate", G_CALLBACK(menu_file_open), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), open);
 		}
 		{ // File -> Revert To Saved
-			m->revert = gtk_image_menu_item_new_from_stock(GTK_STOCK_REVERT_TO_SAVED, NULL);
+			m->revert = gtk_menu_item_new_with_mnemonic("_Revert to Saved");
 			g_signal_connect(G_OBJECT(m->revert), "activate", G_CALLBACK(menu_file_reload), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->revert);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Save
-			m->save = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE, NULL);
+			m->save = gtk_menu_item_new_with_mnemonic("_Save");
 			g_signal_connect(G_OBJECT(m->save), "activate", G_CALLBACK(menu_file_save), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->save);
 		}
 		{ // File -> Save As
-			m->saveas = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE_AS, NULL);
+			m->saveas = gtk_menu_item_new_with_mnemonic("Save _As...");
 			g_signal_connect(G_OBJECT(m->saveas), "activate", G_CALLBACK(menu_file_save_as), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->saveas);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Close
-			m->close = gtk_image_menu_item_new_from_stock(GTK_STOCK_CLOSE, NULL);
+			m->close = gtk_menu_item_new_with_mnemonic("_Close");
 			g_signal_connect(G_OBJECT(m->close), "activate", G_CALLBACK(menu_file_close), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), m->close);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), gtk_separator_menu_item_new());
 		{ // File -> Quit
-			GtkWidget* quit = gtk_image_menu_item_new_from_stock(GTK_STOCK_QUIT, NULL);
+			GtkWidget* quit = gtk_menu_item_new_with_mnemonic("_Quit");
 			g_signal_connect(G_OBJECT(quit), "activate", G_CALLBACK(menu_file_quit), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), quit);
 		}
@@ -644,47 +643,41 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		GtkWidget* partmenu = gtk_menu_new();
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(m->part), partmenu);
 		{ // Part -> New Multipart Node
-			GtkWidget* node = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(node), "New _Multipart Node");
+			GtkWidget* node = gtk_menu_item_new_with_mnemonic("New _Multipart Node");
 			g_signal_connect(G_OBJECT(node), "activate", G_CALLBACK(menu_part_new_node), w);
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), node);
 		}
 		{ // Part -> New Empty Part
-			GtkWidget* empty = gtk_image_menu_item_new_from_stock(GTK_STOCK_NEW, NULL);
+			GtkWidget* empty = gtk_menu_item_new_with_mnemonic("New _Empty Part");
 			g_signal_connect(G_OBJECT(empty), "activate", G_CALLBACK(menu_part_new_empty), w);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(empty), "New _Empty Part");
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), empty);
 		}
 		{ // Part -> New From File
-			GtkWidget* fromfile = gtk_image_menu_item_new_from_stock(GTK_STOCK_OPEN, NULL);
+			GtkWidget* fromfile = gtk_menu_item_new_with_mnemonic("New Part From _File");
 			g_signal_connect(G_OBJECT(fromfile), "activate", G_CALLBACK(menu_part_new_from_file), w);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(fromfile), "New Part From _File");
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), fromfile);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Edit
-			m->menu_part_edit = gtk_image_menu_item_new_from_stock(GTK_STOCK_EDIT, NULL);
+			m->menu_part_edit = gtk_menu_item_new();
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), m->menu_part_edit);
 			g_signal_connect(G_OBJECT(m->menu_part_edit), "activate", G_CALLBACK(menu_part_edit), w);
 		}
 		{ // Part -> Edit with
-			GtkWidget* editwith = gtk_image_menu_item_new_from_stock(GTK_STOCK_EDIT, NULL);
+			GtkWidget* editwith = gtk_menu_item_new_with_mnemonic("Edit _With...");
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), editwith);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(editwith), "Edit _With...");
 			g_signal_connect(G_OBJECT(editwith), "activate", G_CALLBACK(menu_part_edit_with), w);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Export
-			GtkWidget* export = gtk_image_menu_item_new_from_stock(GTK_STOCK_SAVE, NULL);
+			GtkWidget* export = gtk_menu_item_new_with_mnemonic("_Export");
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), export);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(export), "Export...");
 			g_signal_connect(G_OBJECT(export), "activate", G_CALLBACK(menu_part_export), w);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), gtk_separator_menu_item_new());
 		{ // Part -> Delete
-			GtkWidget* delete = gtk_image_menu_item_new_from_stock(GTK_STOCK_DELETE, NULL);
+			GtkWidget* delete = gtk_menu_item_new_with_mnemonic("_Delete");
 			gtk_menu_shell_append(GTK_MENU_SHELL(partmenu), delete);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(delete), "Delete");
 			g_signal_connect(G_OBJECT(delete), "activate", G_CALLBACK(menu_part_delete), w);
 		}
 		gtk_menu_shell_append(GTK_MENU_SHELL(menubar), m->part);
