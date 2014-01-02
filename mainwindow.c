@@ -756,7 +756,7 @@ gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 }
 
 WemedWindow* wemed_window_create() {
-	WemedWindow* w = g_new(WemedWindow, 1);
+	WemedWindow* w = g_new0(WemedWindow, 1);
 
 	w->root_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	w->icon = gtk_icon_theme_load_icon(system_icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
