@@ -8,9 +8,14 @@
 #include "mimemodel.h"
 #include "mainwindow.h"
 
+#include <locale.h>
+#include <libintl.h>
+
 GtkIconTheme* system_icon_theme = 0;
 
 int main(int argc, char** argv) {
+	setlocale(LC_ALL, "");
+	textdomain("wemed");
 	gtk_init(&argc, &argv);
 	system_icon_theme = gtk_icon_theme_get_default();
 	webkit_set_cache_model(WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
@@ -18,7 +23,6 @@ int main(int argc, char** argv) {
 
 	WemedWindow* w = wemed_window_create();
 	if(argc == 2) {
-		//MimeModel* m = mime_model_new(NULL);
 		wemed_window_open(w, argv[1]);
 	}
 
