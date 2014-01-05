@@ -463,6 +463,31 @@ static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
 	expand_mime_tree_view(w);
 }
 
+static char* import_file_into_tree(WemedWindow* w, const char* filename, const char* disposition) {
+	static int partnum = 0;
+	char* mime_type = get_file_mime_type(filename);
+	GMimePart* part = GMIME_PART(mime_model_new_node(w->model, w->current_part, mime_type));
+	mime_model_update_content(w->model, part, slurp_and_close(fopen(filename, "rb")));
+	char* cid;
+	asprintf(&cid, "part%d_%u", partnum++, (unsigned int)time(0));
+	g_mime_part_set_content_id(part, cid);
+	char* slashpos = strrchr(filename, '/');
+	g_mime_part_set_filename(part, slashpos? &slashpos[1] : filename);
+	if(disposition)
+		g_mime_object_set_disposition((GMimeObject*) part, disposition);
+	GString s = {0};
+	s.str = g_mime_object_get_headers((GMimeObject*) part);
+	s.len = strlen(s.str);
+	mime_model_update_header(w->model, (GMimeObject*) part, s);
+	free(mime_type);
+	expand_mime_tree_view(w);
+	return cid;
+}
+
+static char* import_file_cb(WemedPanel* p, const char* filename, WemedWindow* w) {
+	return import_file_into_tree(w, filename, GMIME_DISPOSITION_INLINE);
+}
+
 static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new (_("Open File"),
 			GTK_WINDOW(w->root_window),
@@ -473,11 +498,7 @@ static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		char* mime_type = get_file_mime_type(filename);
-		GMimePart* part = GMIME_PART(mime_model_new_node(w->model, w->current_part, mime_type));
-		mime_model_update_content(w->model, part, slurp_and_close(fopen(filename, "rb")));
-		expand_mime_tree_view(w);
-		free(mime_type);
+		import_file_into_tree(w, filename, GMIME_DISPOSITION_ATTACHMENT);
 		free(filename);
 	}
 
@@ -780,7 +801,9 @@ WemedWindow* wemed_window_create() {
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(treeviewwin), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(treeviewwin), w->mime_tree);
 	gtk_paned_add1(GTK_PANED(w->paned), treeviewwin);
+
 	w->panel = wemed_panel_new();
+	g_signal_connect(w->panel, "import-file", G_CALLBACK(import_file_cb), w);
 	gtk_paned_add2(GTK_PANED(w->paned), w->panel);
 
 	g_signal_connect(G_OBJECT(w->mime_tree), "selection-changed", G_CALLBACK(tree_selection_changed), w);
