@@ -24,6 +24,7 @@ G_DEFINE_TYPE(WemedPanel, wemed_panel, GTK_TYPE_PANED);
 enum {
 	WP_SIG_GET_CID,
 	WP_SIG_IMPORT,
+	WP_SIG_DIRTIED,
 	WP_SIG_LAST
 };
 
@@ -37,6 +38,7 @@ typedef struct {
 	GtkWidget* toolbar;
 	GtkWidget* progress_bar;
 	gboolean load_remote;
+	gint dirty_signals[2];
 } WemedPanelPrivate;
 
 // called when WebKit loads part of the HTML content. Used to dynamically
@@ -210,6 +212,12 @@ static gboolean filter_variant_fonts(const PangoFontFamily* family, const PangoF
 	return include;
 }
 
+static void dirtied_cb(GObject* emitter, WemedPanel* wp) {
+	GET_D(wp);
+	if(emitter == G_OBJECT(d->webview) || 
+			(emitter == G_OBJECT(d->headertext) && gtk_text_buffer_get_modified(d->headertext)))
+		g_signal_emit(wp, wemed_panel_signals[WP_SIG_DIRTIED], 0);
+}
 
 static void wemed_panel_init(WemedPanel* wp) {
 	GET_D(wp);
@@ -314,6 +322,16 @@ static void wemed_panel_class_init(WemedPanelClass* class) {
 			G_TYPE_STRING, // return tye
 			1, // num args
 			G_TYPE_STRING); // arg types
+	wemed_panel_signals[WP_SIG_DIRTIED] = g_signal_new(
+			"dirtied",
+			G_TYPE_FROM_CLASS ((GObjectClass*)class),
+			G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+			0,
+			NULL,
+			NULL,
+			NULL,
+			G_TYPE_NONE,
+			0);
 }
 
 GtkWidget* wemed_panel_new() {
@@ -322,9 +340,14 @@ GtkWidget* wemed_panel_new() {
 
 void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 	GET_D(wp);
+	if(d->dirty_signals[0])
+		g_signal_handler_disconnect(G_OBJECT(d->webview), d->dirty_signals[0]);
+	if(d->dirty_signals[1])
+		g_signal_handler_disconnect(G_OBJECT(d->headertext), d->dirty_signals[1]);
 	wemed_panel_clear(wp);
 
 	gtk_text_buffer_set_text(d->headertext, doc.headers.str, doc.headers.len);
+	gtk_text_buffer_set_modified(d->headertext, FALSE);
 	gtk_widget_set_sensitive(d->headerview, TRUE);
 
 	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
@@ -341,6 +364,9 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 	
 	// start the progress bar, it should be hidden on completion of load
 	gtk_widget_show(d->progress_bar);
+
+	d->dirty_signals[0] = g_signal_connect(G_OBJECT(d->webview), "user-changed-contents", G_CALLBACK(dirtied_cb), wp);
+	d->dirty_signals[1] = g_signal_connect(G_OBJECT(d->headertext), "modified-changed", G_CALLBACK(dirtied_cb), wp);
 }
 
 void wemed_panel_show_source(WemedPanel* wp, gboolean en) {

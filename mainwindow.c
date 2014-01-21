@@ -154,7 +154,7 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 // this involves fetching header and content data from the view and needs to be
 // called before the user changes to a different part or performs any model manipulations
 static void register_changes(WemedWindow* w) {
-	if(w->current_part == NULL) return;
+	if(w->current_part == NULL || w->dirty == FALSE) return;
 	// first see if the content has been changed. Only do this for
 	// content types of text/ since other types can only be edited
 	// externally, at which time they get saved
@@ -162,8 +162,8 @@ static void register_changes(WemedWindow* w) {
 		const char* ct = mime_model_content_type(w->current_part);
 		if(strncmp(ct, "text/", 5) == 0) {
 			gboolean as_html_source = (strcmp(ct, "text/html") == 0);
-			// new_content is in utf-8, so we have to convert it back if that's not
-			// the character encoding of this part
+			// webkit returns content in utf-8, so we have to convert it back 
+			// if the desired encoding is different
 			GString new_content = wemed_panel_get_content(WEMED_PANEL(w->panel), as_html_source);
 			const char* charset = g_mime_object_get_content_type_parameter(w->current_part, "charset");
 			if(charset && strcmp("utf8", charset) != 0) {
@@ -175,15 +175,8 @@ static void register_changes(WemedWindow* w) {
 					new_content.len = sz;
 				} else printf("Conversion failed\n");
 			}
-			GString old_content = mime_model_part_content(w->current_part, FALSE);
-			if(strcmp(new_content.str, old_content.str) != 0) {
-				w->dirty = TRUE;
-				gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
-				gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
-				mime_model_update_content(w->model, GMIME_PART(w->current_part), new_content);
-			}
+			mime_model_update_content(w->model, GMIME_PART(w->current_part), new_content);
 			free(new_content.str);
-			free(old_content.str);
 		}
 	}
 
@@ -204,6 +197,12 @@ static void register_changes(WemedWindow* w) {
 		}
 	}
 	free(new_headers.str);
+}
+
+static void set_dirtied(GObject* caller, WemedWindow* w) {
+	w->dirty = TRUE;
+	gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
 }
 
 static void close_document(WemedWindow* w) {
@@ -258,11 +257,16 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	free(tmpfile);
 }
 
+static void set_clean(WemedWindow* w) {
+	w->dirty = FALSE;
+	gtk_widget_set_sensitive(w->menu_widgets->revert, FALSE);
+	gtk_widget_set_sensitive(w->menu_widgets->save, FALSE);
+}
+
 
 //>>>>>>>>>> BEGIN MENU BAR CALLBACK SECTION
 
 static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
-	register_changes(w);
 
 	GtkWidget *dialog = gtk_file_chooser_dialog_new (_("Save File"), GTK_WINDOW(w->root_window), GTK_FILE_CHOOSER_ACTION_SAVE, _("_Cancel"), GTK_RESPONSE_CANCEL, _("_Save"), GTK_RESPONSE_ACCEPT, NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
@@ -272,10 +276,9 @@ static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (dialog));
 		FILE* fp = fopen(filename, "wb");
+		register_changes(w);
 		if(fp && mime_model_write_to_file(w->model, fp)) {
-			w->dirty = FALSE;
-			gtk_widget_set_sensitive(w->menu_widgets->revert, FALSE);
-			gtk_widget_set_sensitive(w->menu_widgets->save, FALSE);
+			set_clean(w);
 			free(w->filename);
 			w->filename = filename;
 			update_title(w);
@@ -289,18 +292,15 @@ static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static gboolean menu_file_save(GtkMenuItem* item, WemedWindow* w) {
-	register_changes(w);
 	if(w->filename == NULL) // run 'Save As' instead
 		return menu_file_save_as(NULL, w);
 	else {
 		FILE* fp = fopen(w->filename, "wb");
 		if(!fp) return FALSE;
+		register_changes(w);
 		gboolean ret = mime_model_write_to_file(w->model, fp);
-		if(ret) {
-			w->dirty = FALSE;
-			gtk_widget_set_sensitive(w->menu_widgets->revert, FALSE);
-			gtk_widget_set_sensitive(w->menu_widgets->save, FALSE);
-		} 
+		if(ret)
+			set_clean(w);
 		return ret;
 	}
 }
@@ -308,7 +308,6 @@ static gboolean menu_file_save(GtkMenuItem* item, WemedWindow* w) {
 // returns a boolean of whether the user accepts a close or not so the function
 // can be reused when creating or opening a new document
 static gboolean confirm_close(WemedWindow* w) {
-	register_changes(w);
 	if(w->dirty) {
 		GtkWidget* dialog = gtk_message_dialog_new(
 				GTK_WINDOW(w->root_window),
@@ -363,6 +362,7 @@ static void menu_file_reload(GtkMenuItem* item, WemedWindow* w) {
 			GTK_BUTTONS_YES_NO,
 			_("Are you sure you want to reload the file from disk?"));
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_YES) {
+		close_document(w);
 		wemed_window_open(w, f);
 	}
 	gtk_widget_destroy(dialog);
@@ -449,9 +449,7 @@ static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
 	gtk_container_add(GTK_CONTAINER(content), combo);
 	gtk_widget_show_all(dialog);
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-		w->dirty = TRUE;
-		gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
-		gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
+		set_dirtied(0, w);
 		mime_model_new_node(w->model, w->current_part, gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo)));
 		expand_mime_tree_view(w);
 	}
@@ -511,15 +509,15 @@ static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
-	register_changes(w);
 	const char* content_type_name = mime_model_content_type(w->current_part);
 	char* exec = open_with(w->root_window, content_type_name);
-	if(exec)
+	if(exec) {
+		register_changes(w);
 		open_part_with_external_app(w, GMIME_PART(w->current_part), exec);
+	}
 }
 
 static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
-	register_changes(w);
 	GtkWidget *dialog = gtk_file_chooser_dialog_new(
 			_("Save File"),
 			GTK_WINDOW(w->root_window),
@@ -533,6 +531,7 @@ static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
 	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), g_mime_part_get_filename(GMIME_PART(w->current_part)));
 
 	if(gtk_dialog_run(GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
+		register_changes(w);
 		char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 		FILE* fp = fopen(filename, "wb");
 		mime_model_write_part(GMIME_PART(w->current_part), fp);
@@ -542,7 +541,6 @@ static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static void menu_part_delete(GtkMenuItem* item, WemedWindow* w) {
-	register_changes(w);
 	mime_model_part_remove(w->model, w->current_part);
 }
 
@@ -776,6 +774,7 @@ gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 		set_model(w, m);
 		w->filename = strdup(filename);
 		update_title(w);
+		set_clean(w);
 		return TRUE;
 	} else return FALSE;
 }
@@ -804,6 +803,7 @@ WemedWindow* wemed_window_create() {
 
 	w->panel = wemed_panel_new();
 	g_signal_connect(w->panel, "import-file", G_CALLBACK(import_file_cb), w);
+	g_signal_connect(w->panel, "dirtied", G_CALLBACK(set_dirtied), w);
 	gtk_paned_add2(GTK_PANED(w->paned), w->panel);
 
 	g_signal_connect(G_OBJECT(w->mime_tree), "selection-changed", G_CALLBACK(tree_selection_changed), w);
