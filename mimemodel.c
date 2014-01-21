@@ -274,10 +274,10 @@ MimeModel* mime_model_new(GString content) {
 	m->filter_enabled = FALSE;
 
 	if(content.str) {
-	GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content.str, content.len);
-	GMimeParser* parser = g_mime_parser_new_with_stream(gfs);
-	GMimeMessage* message = g_mime_parser_construct_message(parser);
-	m->message = g_mime_message_get_mime_part(message);
+		GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content.str, content.len);
+		GMimeParser* parser = g_mime_parser_new_with_stream(gfs);
+		GMimeMessage* message = g_mime_parser_construct_message(parser);
+		m->message = g_mime_message_get_mime_part(message);
 	} else {
 		m->message = (GMimeObject*) g_mime_multipart_new();
 	}
@@ -400,7 +400,10 @@ GString mime_model_part_content(GMimeObject* obj, gboolean in_data_uri) {
 	const char* content_type_name = mime_model_content_type(obj);
 	GMimePart* part = GMIME_PART(obj);
 
-	GMimeStream* source = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
+	GMimeDataWrapper* data_obj = g_mime_part_get_content_object(part);
+	if(data_obj == NULL) // empty part
+		return ret;
+	GMimeStream* source = g_mime_data_wrapper_get_stream(data_obj);
 	g_mime_stream_reset(source);
 	GMimeContentEncoding encoding = g_mime_part_get_content_encoding(part);
 	// if the content type is text, return a text string

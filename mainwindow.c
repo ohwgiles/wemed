@@ -127,6 +127,10 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 		} else if(wemed_panel_supported_type(WEMED_PANEL(w->panel), mime_type)) {
 			content = mime_model_part_content(part, TRUE);
 		}
+		
+		// the part could be empty, meaning content.str == 0. compensate:
+		if(content.str == 0)
+			content.str = strdup("");
 
 		// determine the external program for the given mime type and update the menu accordingly
 		free(w->mime_app.name); // clean up the last one
