@@ -2,106 +2,47 @@
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
 #include <stdio.h>
-#include <fcntl.h>
+#include "exec.h"
 #include "mimeapp.h"
-
-char* strchrnul(const char*, int);
-
 
 struct Application get_default_mime_app(const char* mimetype) {
 	struct Application a = {0,0};
-	int pipes[2];
-	char buffer[64] = {0};
-	int n;
+	char buffer[64];
 
-	pipe(pipes);
-	fcntl(pipes[1], F_SETFL, fcntl(pipes[1], F_GETFL) | O_NONBLOCK);
-	fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) | O_NONBLOCK);
-
-	pid_t pid = fork();
-	if(pid == 0) { //child
-		dup2(pipes[1], STDOUT_FILENO);
-		close(pipes[0]);
-		close(pipes[1]);
-		execlp("xdg-mime", "xdg-mime", "query", "default", mimetype, NULL);
-		_exit(0);
-	}
-	waitpid(pid, 0, 0);
-	n = read(pipes[0], buffer, 63);
-	if(n < 0) return a;
-	buffer[n] = '\0';
+	const char* xdgmime[] = { "xdg-mime", "query", "default", mimetype, 0 };
+	if(exec_get(buffer, 63, "xdg-mime", xdgmime) < 0) return a;
 	*strchrnul(buffer, '\n') = '\0';
+
 	char* path = malloc(sizeof("/usr/share/applications/") + strlen(buffer) + 1);
 	sprintf(path, "/usr/share/applications/%s", buffer);
 
-	pid = fork();
-	if(pid == 0) {
-		dup2(pipes[1], STDOUT_FILENO);
-		close(pipes[0]);
-		close(pipes[1]);
-		execlp("grep", "grep", "^Exec=", path, NULL);
-		_exit(0);
-	}
-	waitpid(pid, 0, 0);
-	n = read(pipes[0], buffer, 63);
-	if(n < 0) return free(path),a;
-	buffer[n] = '\0';
+	const char* grep_exec[] = { "grep", "^Exec=", path, 0 };
+	if(exec_get(buffer, 63, "grep", grep_exec) < 0) return free(path), a;
 	*strchrnul(buffer, '\n') = '\0';
+
 	char executable_path[64] = {0};
 	sscanf(buffer, "Exec=%48s", executable_path);
 
-	pid = fork();
-	if(pid == 0) {
-		dup2(pipes[1], STDOUT_FILENO);
-		close(pipes[0]);
-		close(pipes[1]);
-		execlp("grep", "grep", "^Name=", path, NULL);
-		_exit(0);
-	}
-	waitpid(pid, 0, 0);
-	n = read(pipes[0], buffer, 63);
-	if(n < 0) return free(path),a;
-	buffer[n] = '\0';
+	const char* grep_name[] = { "grep", "^Name=", path, 0 };
+	if(exec_get(buffer, 63, "grep", grep_name) < 0) return free(path), a;
 	*strchrnul(buffer, '\n') = '\0';
+
 	char *executable_name = &buffer[sizeof("Name=")-1];
 
 	free(path);
-	close(pipes[0]);
-	close(pipes[1]);
 
 	a.name = strdup(executable_name);
 	a.exec = strdup(executable_path);
-
 
 	return a;
 }
 
 char* get_file_mime_type(const char* filename) {
-	int pipes[2];
 	char buffer[64] = {0};
-	int n;
-
-	pipe(pipes);
-	fcntl(pipes[1], F_SETFL, fcntl(pipes[1], F_GETFL) | O_NONBLOCK);
-	fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) | O_NONBLOCK);
-
-	pid_t pid = fork();
-	if(pid == 0) { //child
-		dup2(pipes[1], STDOUT_FILENO);
-		close(pipes[0]);
-		close(pipes[1]);
-		execlp("xdg-mime", "xdg-mime", "query", "filetype", filename, NULL);
-		_exit(0);
-	}
-	waitpid(pid, 0, 0);
-	n = read(pipes[0], buffer, 63);
-	if(n < 0) return NULL;
-	buffer[n] = '\0';
-
+	const char* args[] = { "xdg-mime", "query", "filetype", filename, 0 };
+	if(exec_get(buffer, 63, "xdg-mime", args) < 0) return 0;
 	return strdup(buffer);
 }

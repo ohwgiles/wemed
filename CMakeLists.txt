@@ -14,9 +14,9 @@ include_directories(${GTK3_INCLUDE_DIRS} ${WEBKITGTK3_INCLUDE_DIRS} ${GMIME26_IN
 link_directories(${GTK3_LIBRARY_DIRS} ${WEBKITGTK3_LIBRARY_DIRS} ${GMIME26_LIBRARY_DIRS})
 add_definitions(${GTK3_CFLAGS_OTHER} ${WEBKITGTK3_CFLAGS_OTHER} ${GMIME26_CFLAGS_OTHER})
 
-add_definitions(-std=gnu99 -Wall -Wextra -Werror -Wno-error=unused -Wno-unused-parameter -Wno-missing-field-initializers)
+add_definitions(-std=gnu99 -Wall -Wextra -Werror -Wno-error=unused -Wno-unused-parameter -Wno-missing-field-initializers -Wno-error=unused-result)
 
-add_executable(wemed main.c openwith.c mainwindow.c mimeapp.c mimemodel.c mimetree.c wemedpanel.c)
+add_executable(wemed main.c exec.c openwith.c mainwindow.c mimeapp.c mimemodel.c mimetree.c wemedpanel.c)
 set_target_properties(wemed PROPERTIES COMPILE_DEFINITIONS "_GNU_SOURCE")
 target_link_libraries(wemed ${GTK3_LIBRARIES} ${WEBKITGTK3_LIBRARIES} ${GMIME26_LIBRARIES}) 
 

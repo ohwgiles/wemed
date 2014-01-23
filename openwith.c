@@ -2,93 +2,67 @@
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
-
-#include <unistd.h>
 #include <stdlib.h>
-#include <sys/wait.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <string.h>
 #include "openwith.h"
+#include "exec.h"
 
 char* strchrnul(const char*, int);
 
 static void populate_options(const char* content_type, GtkIconTheme* icontheme, GtkListStore* store) {
 	// first get all the possible apps from the MIME cache
-	int pipes[2];
 	char buffer[20001] = {0};
 	int n;
 
-	pipe(pipes);
-	fcntl(pipes[1], F_SETFL, fcntl(pipes[1], F_GETFL) | O_NONBLOCK);
-	fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) | O_NONBLOCK);
-
 	char* grepsearch = malloc(1 + strlen(content_type) + 2);
 	sprintf(grepsearch, "^%s=", content_type);
+	const char* args[] = { "grep", grepsearch, "/usr/share/applications/mimeinfo.cache", 0 };
 
-	pid_t pid = fork();
-	if(pid == 0) { //child
-		dup2(pipes[1], STDOUT_FILENO);
-		close(pipes[0]);
-		close(pipes[1]);
-		execlp("grep", "grep", grepsearch, "/usr/share/applications/mimeinfo.cache", NULL);
-		_exit(0);
-	}
-	waitpid(pid, 0, 0);
-	free(grepsearch);
-	n = read(pipes[0], buffer, 20000);
-	if(n < 0) return;
-	buffer[n] = '\0';
+	n = exec_get(buffer, 20000, "grep", args);
+	if(n < 0) return free(grepsearch);
 	*strchrnul(buffer, '\n') = '\0';
+	free(grepsearch);
 
+	char* apps = strchr(buffer, '=') + 1;
 
 	// now we have their .desktops in our buffer, get all the possible apps.
 	// to save execution overhead, do it in one big grep
-	char* argv[100];
+	const char* argv[100];
 	argv[0] = "grep";
 	argv[1] = "-E";
-	argv[2] = "-Z";
-	argv[3] = "^Name=|^Exec=|^Icon=";
-	int argc = 3;
-	for(char* p = buffer; *p; ++p) {
-		if(*p == ';') *p++ = 0, argv[++argc] = p;
+	argv[2] = "-H";
+	argv[3] = "-Z";
+	argv[4] = "^Name=|^Exec=|^Icon=";
+	argv[5] = apps;
+	int argc = 5;
+	for(char* p = apps; *p; ++p) {
+		if(*p == ';') {
+			*p++ = 0;
+			argv[++argc] = p;
+		}
 	}
+	argv[argc] = 0;
 
-	pid = fork();
-	if(pid == 0) { //child
-		dup2(pipes[1], STDOUT_FILENO);
-		close(pipes[0]);
-		close(pipes[1]);
-		chdir("/usr/share/applications");
-		execvp("grep", argv);
-		_exit(0);
-	}
-	waitpid(pid, 0, 0);
-	n = read(pipes[0], buffer, 20000);
-	if(n < 0) return ;
-	buffer[n] = '\0';
+	if(chdir("/usr/share/applications")) return;
+	n = exec_get(buffer, 20000, "grep", argv);
+	if(n < 0) return;
 	
 	// now we have all the apps, get their names, paths and icons
 	char *pf = buffer, *pe = 0, *pn = 0, *pi = 0;
 	for(char* p = buffer; p != &buffer[n]; ++p) {
 		if(*p == '\0') {
-			if(strncmp(&p[1], "Name=", 5) == 0) {
+			if(pn == 0 && strncmp(&p[1], "Name=", 5) == 0) {
 				pn = &p[6];
-			} else if(strncmp(&p[1], "Exec=", 5) == 0) {
+			} else if(pe == 0 && strncmp(&p[1], "Exec=", 5) == 0) {
 				pe = &p[6];
-			} else if(strncmp(&p[1], "Icon=", 5) == 0) {
+			} else if(pi == 0 && strncmp(&p[1], "Icon=", 5) == 0) {
 				pi = &p[6];
-			} else {
-				printf("Something weird happened\n");
-				printf("p1 is %s\n", &p[1]);
-				continue;
 			}
-
 		}
 		else if(*p == '\n') {
 			*p = '\0';
 			if(strcmp(&p[1], pf) != 0) {
-				printf("found name %s exec %s icon %s\n", pn, pe, pi);
 				GdkPixbuf* icon = gtk_icon_theme_load_icon(icontheme, pi, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 				GtkTreeIter iter;
 				gtk_list_store_append(store, &iter);
