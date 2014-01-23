@@ -1,0 +1,18 @@
+Source: wemed
+Section: x11
+Priority: extra
+Maintainer: Oliver Giles <web@ohwg.net>
+Build-Depends: debhelper (>= 9.0.0), cmake (>= 2.8)
+Standards-Version: 3.9.4
+Homepage: http://wemed.ohwg.net
+Vcs-Git: https://github.com/ohwgiles/wemed.git
+Vcs-Browser: https://github.com/ohwgiles/wemed
+
+Package: wemed
+Architecture: i386 amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: MIME (MHTML and EML) editor
+ WEbkit-based Mime EDitor. Wemed can view, edit
+ and create documents in multi-part MIME format.
+ This includes email messages (.eml) files, and
+ MIME HTML archives (.mht or .mhtml files).
