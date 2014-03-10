@@ -9,7 +9,7 @@
 	a:hover { text-decoration: underline; }
 	a:visited { text-decoration: none; color: #55f; }
 	a:active { text-decoration: none; color: #55f; }
-	div#main { margin-left: 40px; width: 575px; }
+	div#main { margin-left: 40px; width: 740px; }
 	h3 { margin-bottom: 0; }
 	div.code { margin: 10px; padding: 10px; border: 1px dashed gray; background: #eed; font-family: monospace; }
 </style>
@@ -19,8 +19,8 @@
 <div id="main">
 <h1>*wemed</h1>
 <h2>A multipart MIME document viewer and editor</h2>
-<p>Current version: beta 0.1</p>
-<img width="575" height="391" src="screenshot.png">
+<p>Current version: beta 0.2</p>
+<img width="740" height="503" src="screenshot.png">
 <h2>About</h2>
 <p>Wemed allows you to create, edit and view multipart MIME documents, including mail message (.eml) files and web page archives (.mhtml)</p>
 <p>MIME is defined by rfc5322, which is a revision of rfc2822, itself a successor to rfc822. Modern eml files are still given the MIME type of message/rfc822.</p>
@@ -30,7 +30,14 @@
 <p><strong>How do I install wemed?</strong><br>
 For Arch Linux, wemed is available <a href="https://aur.archlinux.org/packages/wemed">from the AUR</a>:<br>
 <div class="code">$ yaourt -S wemed</div>
-Ubuntu and Debian packages are under development. To install from source:
+Ubuntu users can fetch the binary from Launchpad:<br>
+<div class="code">
+$ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys D0075B2FE3A63E31<br>
+$ sudo apt-add-repository http://ppa.launchpad.net/ohw-giles/wemed/ubuntu <br>
+$ sudo apt-get update<br>
+$ sudo apt-get install wemed
+</div>
+To install from source:<br>
 <div class="code">
 $ # first install development libraries for webkitgtk-3.0 and gmime-2.6<br>
 $ git clone https://github.com/ohwgiles/wemed.git<br>
