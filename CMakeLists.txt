@@ -16,9 +16,19 @@ add_definitions(${GTK3_CFLAGS_OTHER} ${WEBKITGTK3_CFLAGS_OTHER} ${GMIME26_CFLAGS
 
 add_definitions(-std=gnu99 -Wall -Wextra -Werror -Wno-error=unused -Wno-unused-parameter -Wno-missing-field-initializers -Wno-error=unused-result)
 
-add_executable(wemed main.c exec.c openwith.c mainwindow.c mimeapp.c mimemodel.c mimetree.c wemedpanel.c)
+set(sources main.c exec.c openwith.c mainwindow.c mimeapp.c mimemodel.c mimetree.c wemedpanel.c)
+add_executable(wemed ${sources})
 set_target_properties(wemed PROPERTIES COMPILE_DEFINITIONS "_GNU_SOURCE")
 target_link_libraries(wemed ${GTK3_LIBRARIES} ${WEBKITGTK3_LIBRARIES} ${GMIME26_LIBRARIES}) 
+
+add_custom_target(build-pot
+	COMMAND xgettext -LC -k_ -kN_ ${sources} -o po/wemed.pot --package-name=wemed
+	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+	COMMENT "Building the translation template" VERBATIM)
+
+find_package(Gettext REQUIRED)
+set (po_files po/cs.po)
+GETTEXT_CREATE_TRANSLATIONS(${PROJECT_SOURCE_DIR}/po/wemed.pot ALL ${po_files})
 
 install(TARGETS wemed RUNTIME DESTINATION bin)
 install(FILES res/16.png DESTINATION share/icons/hicolor/16x16/apps RENAME wemed.png)
