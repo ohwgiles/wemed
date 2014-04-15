@@ -1,0 +1,213 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: wemed\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-03-22 11:43+0100\n"
+"PO-Revision-Date: 2014-03-30 19:17+0100\n"
+"Last-Translator: \n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: he\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.6.4\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: wemedpanel.c:270
+msgid "Align left"
+msgstr "יישור לשמאל"
+
+#: wemedpanel.c:274
+msgid "Align right"
+msgstr "יישור לימין"
+
+#: mainwindow.c:367
+msgid "Are you sure you want to reload the file from disk?"
+msgstr "האם אתה בטוח שברצונך לטעון את הקובץ?"
+
+#: wemedpanel.c:241
+msgid "Bold"
+msgstr "מודגש"
+
+#: wemedpanel.c:174
+msgid "Cancel"
+msgstr "ביטול"
+
+#: mainwindow.c:682
+msgid "Display _Images"
+msgstr "הצגת תמונות"
+
+#: mainwindow.c:734
+msgid "E_xport..."
+msgstr "יצוא..."
+
+#: mainwindow.c:727
+msgid "Edit _With..."
+msgstr "עריכה עם..."
+
+#: mainwindow.c:140
+#, c-format
+msgid "Edit with %s"
+msgstr "עריכה עם %s"
+
+#: mainwindow.c:721
+msgid "Edit..."
+msgstr "עריכה..."
+
+#: mainwindow.c:321
+msgid "File has been modified. Would you like to save it?"
+msgstr "הקובץ לא נשמר. האם ברצונך לשמור אותו?"
+
+#: mainwindow.c:689
+msgid "Inline Parts in _Tree"
+msgstr "חלקי Inline בתרשים"
+
+#: wemedpanel.c:265
+msgid "Insert image"
+msgstr "הוספת תמונה"
+
+#: wemedpanel.c:245
+msgid "Italic"
+msgstr "נטוי"
+
+#: mainwindow.c:757
+msgid "MIME Headers"
+msgstr "פתיחי MIME"
+
+#: mainwindow.c:714
+msgid "New Part From _File"
+msgstr "חלק חדש מקובץ"
+
+#: mainwindow.c:612
+msgid "New _Blank Document"
+msgstr "מסמך חדש"
+
+#: mainwindow.c:618
+msgid "New _Email Template"
+msgstr "תבנית אימייל חדשה"
+
+#: mainwindow.c:708
+msgid "New _Empty Part"
+msgstr "חלק חדש"
+
+#: mainwindow.c:702
+msgid "New _Multipart Node"
+msgstr "צומת Multipart חדשה"
+
+#: wemedpanel.c:175
+msgid "Open"
+msgstr "פתיחה"
+
+#: mainwindow.c:379 mainwindow.c:494
+msgid "Open File"
+msgstr "פתיחת קובץ"
+
+#: mainwindow.c:275 mainwindow.c:526
+msgid "Save File"
+msgstr "שמור קובץ"
+
+#: mainwindow.c:643
+msgid "Save _As..."
+msgstr "שמירה בשם..."
+
+#: mainwindow.c:444
+msgid "Select Node Type"
+msgstr "בחירת הצומת"
+
+#: wemedpanel.c:171
+msgid "Select images"
+msgstr "בחירת תמונות"
+
+#: wemedpanel.c:253
+msgid "Strikethrough"
+msgstr "קו חוצה"
+
+#: mainwindow.c:578
+msgid "The following are the most useful MIME headers:"
+msgstr "פתיחי MIME המועילים ביותר"
+
+#: wemedpanel.c:249
+msgid "Underline"
+msgstr "קו תחתון"
+
+#: mainwindow.c:752
+msgid "Visit _Website"
+msgstr "קישור לאתר אינטרנט"
+
+#: mainwindow.c:764
+msgid "_About Wemed"
+msgstr "אודות"
+
+#: mainwindow.c:275 mainwindow.c:324 mainwindow.c:382 mainwindow.c:449
+#: mainwindow.c:497 mainwindow.c:529
+msgid "_Cancel"
+msgstr "ביטול"
+
+#: mainwindow.c:560 mainwindow.c:650
+msgid "_Close"
+msgstr "סגירה"
+
+#: mainwindow.c:741
+msgid "_Delete"
+msgstr "מחיקה"
+
+#: mainwindow.c:608
+msgid "_File"
+msgstr "קובץ"
+
+#: mainwindow.c:748
+msgid "_Help"
+msgstr "עזרה"
+
+#: mainwindow.c:676
+msgid "_Load Remote Resources"
+msgstr "טעינה מרחוק"
+
+#: mainwindow.c:323
+msgid "_No"
+msgstr "לא"
+
+#: mainwindow.c:447
+msgid "_OK"
+msgstr "OK"
+
+#: mainwindow.c:383 mainwindow.c:498
+msgid "_Open"
+msgstr "פתיחה"
+
+#: mainwindow.c:624
+msgid "_Open..."
+msgstr "פתיחה..."
+
+#: mainwindow.c:698
+msgid "_Part"
+msgstr "חלק"
+
+#: mainwindow.c:657
+msgid "_Quit"
+msgstr "יציאה"
+
+#: mainwindow.c:630
+msgid "_Revert to Saved"
+msgstr "טעינה מחדש"
+
+#: mainwindow.c:275 mainwindow.c:531 mainwindow.c:637
+msgid "_Save"
+msgstr "שמירה"
+
+#: mainwindow.c:669
+msgid "_Show HTML Source"
+msgstr "הצגת מקור HTML"
+
+#: mainwindow.c:665
+msgid "_View"
+msgstr "תצוגה"
+
+#: mainwindow.c:322
+msgid "_Yes"
+msgstr "כן"
