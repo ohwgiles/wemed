@@ -1,0 +1,213 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: wemed\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2014-03-22 11:43+0100\n"
+"PO-Revision-Date: 2014-04-15 15:02+0100\n"
+"Last-Translator: \n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.6.4\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"Language: zh_Hans_CN\n"
+
+#: mainwindow.c:140
+#, c-format
+msgid "Edit with %s"
+msgstr "用《%s》编辑"
+
+#: mainwindow.c:275 mainwindow.c:526
+msgid "Save File"
+msgstr "保存文件"
+
+#: mainwindow.c:275 mainwindow.c:324 mainwindow.c:382 mainwindow.c:449
+#: mainwindow.c:497 mainwindow.c:529
+msgid "_Cancel"
+msgstr "取消(_C)"
+
+#: mainwindow.c:275 mainwindow.c:531 mainwindow.c:637
+msgid "_Save"
+msgstr "保存(_S)"
+
+#: mainwindow.c:321
+msgid "File has been modified. Would you like to save it?"
+msgstr "文件右修改。您要保存吗？"
+
+#: mainwindow.c:322
+msgid "_Yes"
+msgstr "要(_Y)"
+
+#: mainwindow.c:323
+msgid "_No"
+msgstr "不要(_N)"
+
+#: mainwindow.c:367
+msgid "Are you sure you want to reload the file from disk?"
+msgstr "您确定要重新载入文件？"
+
+#: mainwindow.c:379 mainwindow.c:494
+msgid "Open File"
+msgstr "打开文件"
+
+#: mainwindow.c:383 mainwindow.c:498
+msgid "_Open"
+msgstr "打开(_O)"
+
+#: mainwindow.c:444
+msgid "Select Node Type"
+msgstr "选择节类"
+
+#: mainwindow.c:447
+msgid "_OK"
+msgstr "确定(_O)"
+
+#: mainwindow.c:560 mainwindow.c:650
+msgid "_Close"
+msgstr "关闭(_W)"
+
+#: mainwindow.c:578
+msgid "The following are the most useful MIME headers:"
+msgstr "一些有用的MIME头部:"
+
+#: mainwindow.c:608
+msgid "_File"
+msgstr "文件(_F)"
+
+#: mainwindow.c:612
+msgid "New _Blank Document"
+msgstr "新建(_N)"
+
+#: mainwindow.c:618
+msgid "New _Email Template"
+msgstr "从电子邮件模板新建(_E)"
+
+#: mainwindow.c:624
+msgid "_Open..."
+msgstr "打开(_O)"
+
+#: mainwindow.c:630
+msgid "_Revert to Saved"
+msgstr "重新载入(_R)"
+
+#: mainwindow.c:643
+msgid "Save _As..."
+msgstr "保存为(_A)"
+
+#: mainwindow.c:657
+msgid "_Quit"
+msgstr "退出(_Q)"
+
+#: mainwindow.c:665
+msgid "_View"
+msgstr "查看(_V)"
+
+#: mainwindow.c:669
+msgid "_Show HTML Source"
+msgstr "显示HTML源码(_S)"
+
+#: mainwindow.c:676
+msgid "_Load Remote Resources"
+msgstr "显示文件以外的资料(_L)"
+
+#: mainwindow.c:682
+msgid "Display _Images"
+msgstr "显示图片(_I)"
+
+#: mainwindow.c:689
+msgid "Inline Parts in _Tree"
+msgstr "显示之内的部分在树中(_T)"
+
+#: mainwindow.c:698
+msgid "_Part"
+msgstr "部分(_P)"
+
+#: mainwindow.c:702
+msgid "New _Multipart Node"
+msgstr "新建Multipart节(_M)"
+
+#: mainwindow.c:708
+msgid "New _Empty Part"
+msgstr "新建空的(_M)"
+
+#: mainwindow.c:714
+msgid "New Part From _File"
+msgstr "从文件新建(_F)"
+
+#: mainwindow.c:721
+msgid "Edit..."
+msgstr "编辑(_E)"
+
+#: mainwindow.c:727
+msgid "Edit _With..."
+msgstr "用其他应用编辑(_W)"
+
+#: mainwindow.c:734
+msgid "E_xport..."
+msgstr "导出(_X)"
+
+#: mainwindow.c:741
+msgid "_Delete"
+msgstr "删除(_D)"
+
+#: mainwindow.c:748
+msgid "_Help"
+msgstr "帮助(_H)"
+
+#: mainwindow.c:752
+msgid "Visit _Website"
+msgstr "网站(_W)"
+
+#: mainwindow.c:757
+msgid "MIME Headers"
+msgstr "MIME头部(_M)"
+
+#: mainwindow.c:764
+msgid "_About Wemed"
+msgstr "关于(_A)"
+
+#: wemedpanel.c:171
+msgid "Select images"
+msgstr "选择图片"
+
+#: wemedpanel.c:174
+msgid "Cancel"
+msgstr "取消"
+
+#: wemedpanel.c:175
+msgid "Open"
+msgstr "打开"
+
+#: wemedpanel.c:241
+msgid "Bold"
+msgstr "粗体"
+
+#: wemedpanel.c:245
+msgid "Italic"
+msgstr "斜体"
+
+#: wemedpanel.c:249
+msgid "Underline"
+msgstr "下划线"
+
+#: wemedpanel.c:253
+msgid "Strikethrough"
+msgstr "删除线"
+
+#: wemedpanel.c:265
+msgid "Insert image"
+msgstr "插入图片"
+
+#: wemedpanel.c:270
+msgid "Align left"
+msgstr "左对齐"
+
+#: wemedpanel.c:274
+msgid "Align right"
+msgstr "右对齐"
