@@ -27,7 +27,7 @@ add_custom_target(build-pot
 	COMMENT "Building the translation template" VERBATIM)
 
 find_package(Gettext REQUIRED)
-set (po_files po/cs.po po/he.po)
+set (po_files po/cs.po po/he.po po/de.po)
 GETTEXT_CREATE_TRANSLATIONS(${PROJECT_SOURCE_DIR}/po/wemed.pot ALL ${po_files})
 
 install(TARGETS wemed RUNTIME DESTINATION bin)
