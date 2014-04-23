@@ -75,7 +75,7 @@ msgstr "_Schließen"
 
 #: mainwindow.c:578
 msgid "The following are the most useful MIME headers:"
-msgstr "Folgende sind die nützlichste MIME-Kopfzeilen"
+msgstr "Die Folgenden sind die nützlichsten MIME-Kopfzeilen"
 
 #: mainwindow.c:608
 msgid "_File"
@@ -95,7 +95,7 @@ msgstr "_Öffnen..."
 
 #: mainwindow.c:630
 msgid "_Revert to Saved"
-msgstr "_Neu laden"
+msgstr "_Gespeichertes neu laden"
 
 #: mainwindow.c:643
 msgid "Save _As..."
@@ -135,11 +135,11 @@ msgstr "Neu _Multi-Part Knoten"
 
 #: mainwindow.c:708
 msgid "New _Empty Part"
-msgstr "Neue _leere Teil"
+msgstr "Neuer _leerer Teil"
 
 #: mainwindow.c:714
 msgid "New Part From _File"
-msgstr "Neue Teil aus _Datei"
+msgstr "Neuen Teil aus _Datei"
 
 #: mainwindow.c:721
 msgid "Edit..."
@@ -195,11 +195,11 @@ msgstr "Kursiv"
 
 #: wemedpanel.c:249
 msgid "Underline"
-msgstr "Unterstreichen"
+msgstr "Unterstrichen"
 
 #: wemedpanel.c:253
 msgid "Strikethrough"
-msgstr "Durchstreichen"
+msgstr "Durchgestrichen"
 
 #: wemedpanel.c:265
 msgid "Insert image"
