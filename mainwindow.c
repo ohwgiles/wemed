@@ -421,11 +421,13 @@ static void menu_view_html_source(GtkCheckMenuItem* item, WemedWindow* w) {
 static void menu_view_remote_resources(GtkCheckMenuItem* item, WemedWindow* w) {
 	gboolean remote = gtk_check_menu_item_get_active(item);
 	wemed_panel_load_remote_resources(WEMED_PANEL(w->panel), remote);
+	set_current_part(w, w->current_part);
 }
 
 static void menu_view_display_images(GtkCheckMenuItem* item, WemedWindow* w) {
 	gboolean images = gtk_check_menu_item_get_active(item);
 	wemed_panel_display_images(WEMED_PANEL(w->panel), images);
+	set_current_part(w, w->current_part);
 }
 
 static void menu_view_inline_parts(GtkCheckMenuItem* item, WemedWindow* w) {
