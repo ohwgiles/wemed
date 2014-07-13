@@ -23,7 +23,7 @@ Arch Linux
 
 Ubuntu/Debian
 
-	# apt-get install libgmime-2.6-dev libwebkitgtk-3.0-dev
+	# apt-get install libgtk-3-dev libgmime-2.6-dev libwebkitgtk-3.0-dev
 
 From here the process is standard:
 
