@@ -31,7 +31,7 @@ static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part
 		icon = gtk_icon_theme_load_icon(system_icon_theme, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		free(icon_name);
 	} else {
-		icon = gtk_icon_theme_load_icon(system_icon_theme, "message", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		icon = gtk_icon_theme_load_icon(system_icon_theme, "package", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 		name = mime_model_content_type(part);
 	}
 
