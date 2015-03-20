@@ -7,4 +7,4 @@ Terminal=false
 Icon=wemed
 Type=Application
 Categories=Office;Email;GTK;
-MimeType=message/rfc822;application/x-mimearchive;multipart/related;
+MimeType=message/rfc822;application/x-mimearchive;
