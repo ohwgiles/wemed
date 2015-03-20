@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wemed\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-03-22 11:43+0100\n"
+"POT-Creation-Date: 2015-03-20 22:33+0100\n"
 "PO-Revision-Date: 2014-03-22 11:59+0100\n"
 "Last-Translator: Přemysl Janouch <p.janouch@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,7 +25,7 @@ msgstr "Zarovnat vlevo"
 msgid "Align right"
 msgstr "Zarovnat vpravo"
 
-#: mainwindow.c:367
+#: mainwindow.c:365
 msgid "Are you sure you want to reload the file from disk?"
 msgstr "Určitě chcete nahrát soubor znovu z disku?"
 
@@ -37,15 +37,15 @@ msgstr "Tučně"
 msgid "Cancel"
 msgstr "Zrušit"
 
-#: mainwindow.c:682
+#: mainwindow.c:684
 msgid "Display _Images"
 msgstr "Zobrazit _obrázky"
 
-#: mainwindow.c:734
+#: mainwindow.c:736
 msgid "E_xport..."
 msgstr "E_xport..."
 
-#: mainwindow.c:727
+#: mainwindow.c:729
 msgid "Edit _With..."
 msgstr "_Otevřít s..."
 
@@ -54,15 +54,15 @@ msgstr "_Otevřít s..."
 msgid "Edit with %s"
 msgstr "Otevřít v %s"
 
-#: mainwindow.c:721
+#: mainwindow.c:723
 msgid "Edit..."
 msgstr "Otevřít..."
 
-#: mainwindow.c:321
+#: mainwindow.c:319
 msgid "File has been modified. Would you like to save it?"
 msgstr "Soubor byl změněn. Chcete ho uložit?"
 
-#: mainwindow.c:689
+#: mainwindow.c:691
 msgid "Inline Parts in _Tree"
 msgstr "Vložit části do _stromu"
 
@@ -74,27 +74,27 @@ msgstr "Vložit obrázek"
 msgid "Italic"
 msgstr "Kurzíva"
 
-#: mainwindow.c:757
+#: mainwindow.c:759
 msgid "MIME Headers"
 msgstr "MIME hlavičky"
 
-#: mainwindow.c:714
+#: mainwindow.c:716
 msgid "New Part From _File"
 msgstr "_Nová část ze souboru"
 
-#: mainwindow.c:612
-msgid "New _Blank Document"
-msgstr "Nový _prázdný dokument"
+#: mainwindow.c:614
+msgid "New _Document"
+msgstr "Nový _dokument"
 
-#: mainwindow.c:618
+#: mainwindow.c:620
 msgid "New _Email Template"
 msgstr "Nová šablona _emailu"
 
-#: mainwindow.c:708
+#: mainwindow.c:710
 msgid "New _Empty Part"
 msgstr "Nová _prázdná část"
 
-#: mainwindow.c:702
+#: mainwindow.c:704
 msgid "New _Multipart Node"
 msgstr "Nový _multipart uzel"
 
@@ -102,15 +102,15 @@ msgstr "Nový _multipart uzel"
 msgid "Open"
 msgstr "Otevřít"
 
-#: mainwindow.c:379 mainwindow.c:494
+#: mainwindow.c:377 mainwindow.c:496
 msgid "Open File"
 msgstr "Otevřít soubor"
 
-#: mainwindow.c:275 mainwindow.c:526
+#: mainwindow.c:272 mainwindow.c:528
 msgid "Save File"
 msgstr "Uložit soubor"
 
-#: mainwindow.c:643
+#: mainwindow.c:645
 msgid "Save _As..."
 msgstr "Uložit _jako..."
 
@@ -126,7 +126,7 @@ msgstr "Vyberte obrázky"
 msgid "Strikethrough"
 msgstr "Přeškrtnout"
 
-#: mainwindow.c:578
+#: mainwindow.c:580
 msgid "The following are the most useful MIME headers:"
 msgstr "Následují nejužitečnější MIME hlavičky:"
 
@@ -134,40 +134,40 @@ msgstr "Následují nejužitečnější MIME hlavičky:"
 msgid "Underline"
 msgstr "Podtrhnout"
 
-#: mainwindow.c:752
+#: mainwindow.c:754
 msgid "Visit _Website"
 msgstr "Navštívit _web"
 
-#: mainwindow.c:764
+#: mainwindow.c:766
 msgid "_About Wemed"
 msgstr "_O Wemed"
 
-#: mainwindow.c:275 mainwindow.c:324 mainwindow.c:382 mainwindow.c:449
-#: mainwindow.c:497 mainwindow.c:529
+#: mainwindow.c:272 mainwindow.c:322 mainwindow.c:380 mainwindow.c:449
+#: mainwindow.c:499 mainwindow.c:531
 msgid "_Cancel"
 msgstr "_Zrušit"
 
-#: mainwindow.c:560 mainwindow.c:650
+#: mainwindow.c:562 mainwindow.c:652
 msgid "_Close"
 msgstr "_Zavřít"
 
-#: mainwindow.c:741
+#: mainwindow.c:743
 msgid "_Delete"
 msgstr "_Smazat"
 
-#: mainwindow.c:608
+#: mainwindow.c:610
 msgid "_File"
 msgstr "_Soubor"
 
-#: mainwindow.c:748
+#: mainwindow.c:750
 msgid "_Help"
 msgstr "_Nápověda"
 
-#: mainwindow.c:676
+#: mainwindow.c:678
 msgid "_Load Remote Resources"
 msgstr "_Načíst vzdálené zdroje"
 
-#: mainwindow.c:323
+#: mainwindow.c:321
 msgid "_No"
 msgstr "_Ne"
 
@@ -175,38 +175,38 @@ msgstr "_Ne"
 msgid "_OK"
 msgstr "_OK"
 
-#: mainwindow.c:383 mainwindow.c:498
+#: mainwindow.c:381 mainwindow.c:500
 msgid "_Open"
 msgstr "_Otevřít"
 
-#: mainwindow.c:624
+#: mainwindow.c:626
 msgid "_Open..."
 msgstr "_Otevřít..."
 
-#: mainwindow.c:698
+#: mainwindow.c:700
 msgid "_Part"
 msgstr "_Část"
 
-#: mainwindow.c:657
+#: mainwindow.c:659
 msgid "_Quit"
 msgstr "_Ukončit"
 
-#: mainwindow.c:630
+#: mainwindow.c:632
 msgid "_Revert to Saved"
 msgstr "_Návrat k uložené verzi"
 
-#: mainwindow.c:275 mainwindow.c:531 mainwindow.c:637
+#: mainwindow.c:272 mainwindow.c:533 mainwindow.c:639
 msgid "_Save"
 msgstr "_Uložit"
 
-#: mainwindow.c:669
+#: mainwindow.c:671
 msgid "_Show HTML Source"
 msgstr "_Zobrazit HTML zdroj"
 
-#: mainwindow.c:665
+#: mainwindow.c:667
 msgid "_View"
 msgstr "_Zobrazení"
 
-#: mainwindow.c:322
+#: mainwindow.c:320
 msgid "_Yes"
 msgstr "_Ano"

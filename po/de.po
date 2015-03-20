@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wemed\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-03-22 11:43+0100\n"
+"POT-Creation-Date: 2015-03-20 22:33+0100\n"
 "PO-Revision-Date: 2014-03-30 20:30+0100\n"
 "Last-Translator: \n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,7 +26,7 @@ msgstr "Links ausrichten"
 msgid "Align right"
 msgstr "Rechts ausrichten"
 
-#: mainwindow.c:367
+#: mainwindow.c:365
 msgid "Are you sure you want to reload the file from disk?"
 msgstr ""
 "Sind Sie sicher, dass Sie die Datei von der Festplatte neu laden wollen?"
@@ -39,15 +39,15 @@ msgstr "Fett"
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: mainwindow.c:682
+#: mainwindow.c:684
 msgid "Display _Images"
 msgstr "_Bilder anzeigen"
 
-#: mainwindow.c:734
+#: mainwindow.c:736
 msgid "E_xport..."
 msgstr "Exportieren..."
 
-#: mainwindow.c:727
+#: mainwindow.c:729
 msgid "Edit _With..."
 msgstr "Bearbeiten _mit..."
 
@@ -56,15 +56,15 @@ msgstr "Bearbeiten _mit..."
 msgid "Edit with %s"
 msgstr "Mit %s bearbeiten"
 
-#: mainwindow.c:721
+#: mainwindow.c:723
 msgid "Edit..."
 msgstr "Bearbeiten..."
 
-#: mainwindow.c:321
+#: mainwindow.c:319
 msgid "File has been modified. Would you like to save it?"
 msgstr "Datei wurde geändert. Möchten Sie sie speichern?"
 
-#: mainwindow.c:689
+#: mainwindow.c:691
 msgid "Inline Parts in _Tree"
 msgstr "Inline-Teile in der _Baumansicht"
 
@@ -76,27 +76,27 @@ msgstr "Bild einfügen"
 msgid "Italic"
 msgstr "Kursiv"
 
-#: mainwindow.c:757
+#: mainwindow.c:759
 msgid "MIME Headers"
 msgstr "MIME-Kopfzeile"
 
-#: mainwindow.c:714
+#: mainwindow.c:716
 msgid "New Part From _File"
 msgstr "Neuen Teil aus _Datei"
 
-#: mainwindow.c:612
-msgid "New _Blank Document"
-msgstr "Neues _leeres Dokument"
+#: mainwindow.c:614
+msgid "New _Document"
+msgstr "Neues _Dokument"
 
-#: mainwindow.c:618
+#: mainwindow.c:620
 msgid "New _Email Template"
 msgstr "Neue _E-Mail-Vorlage"
 
-#: mainwindow.c:708
+#: mainwindow.c:710
 msgid "New _Empty Part"
 msgstr "Neuer _leerer Teil"
 
-#: mainwindow.c:702
+#: mainwindow.c:704
 msgid "New _Multipart Node"
 msgstr "Neu _Multi-Part Knoten"
 
@@ -104,15 +104,15 @@ msgstr "Neu _Multi-Part Knoten"
 msgid "Open"
 msgstr "Öffnen"
 
-#: mainwindow.c:379 mainwindow.c:494
+#: mainwindow.c:377 mainwindow.c:496
 msgid "Open File"
 msgstr "Datei öffnen"
 
-#: mainwindow.c:275 mainwindow.c:526
+#: mainwindow.c:272 mainwindow.c:528
 msgid "Save File"
 msgstr "Datei speichern"
 
-#: mainwindow.c:643
+#: mainwindow.c:645
 msgid "Save _As..."
 msgstr "Speichern _unter..."
 
@@ -128,7 +128,7 @@ msgstr "Bilder wählen"
 msgid "Strikethrough"
 msgstr "Durchgestrichen"
 
-#: mainwindow.c:578
+#: mainwindow.c:580
 msgid "The following are the most useful MIME headers:"
 msgstr "Die Folgenden sind die nützlichsten MIME-Kopfzeilen"
 
@@ -136,40 +136,40 @@ msgstr "Die Folgenden sind die nützlichsten MIME-Kopfzeilen"
 msgid "Underline"
 msgstr "Unterstrichen"
 
-#: mainwindow.c:752
+#: mainwindow.c:754
 msgid "Visit _Website"
 msgstr "Webseite besuchen"
 
-#: mainwindow.c:764
+#: mainwindow.c:766
 msgid "_About Wemed"
 msgstr "_Über Wemed"
 
-#: mainwindow.c:275 mainwindow.c:324 mainwindow.c:382 mainwindow.c:449
-#: mainwindow.c:497 mainwindow.c:529
+#: mainwindow.c:272 mainwindow.c:322 mainwindow.c:380 mainwindow.c:449
+#: mainwindow.c:499 mainwindow.c:531
 msgid "_Cancel"
 msgstr "_Abbrechen"
 
-#: mainwindow.c:560 mainwindow.c:650
+#: mainwindow.c:562 mainwindow.c:652
 msgid "_Close"
 msgstr "_Schließen"
 
-#: mainwindow.c:741
+#: mainwindow.c:743
 msgid "_Delete"
 msgstr "_Löschen"
 
-#: mainwindow.c:608
+#: mainwindow.c:610
 msgid "_File"
 msgstr "_Datei"
 
-#: mainwindow.c:748
+#: mainwindow.c:750
 msgid "_Help"
 msgstr "_Hilfe"
 
-#: mainwindow.c:676
+#: mainwindow.c:678
 msgid "_Load Remote Resources"
 msgstr "_Remote-Ressourcen laden"
 
-#: mainwindow.c:323
+#: mainwindow.c:321
 msgid "_No"
 msgstr "_Nein"
 
@@ -177,38 +177,38 @@ msgstr "_Nein"
 msgid "_OK"
 msgstr "_OK"
 
-#: mainwindow.c:383 mainwindow.c:498
+#: mainwindow.c:381 mainwindow.c:500
 msgid "_Open"
 msgstr "_Öffnen"
 
-#: mainwindow.c:624
+#: mainwindow.c:626
 msgid "_Open..."
 msgstr "_Öffnen..."
 
-#: mainwindow.c:698
+#: mainwindow.c:700
 msgid "_Part"
 msgstr "_Teil"
 
-#: mainwindow.c:657
+#: mainwindow.c:659
 msgid "_Quit"
 msgstr "_Beenden"
 
-#: mainwindow.c:630
+#: mainwindow.c:632
 msgid "_Revert to Saved"
 msgstr "_Gespeichertes neu laden"
 
-#: mainwindow.c:275 mainwindow.c:531 mainwindow.c:637
+#: mainwindow.c:272 mainwindow.c:533 mainwindow.c:639
 msgid "_Save"
 msgstr "_Speichern"
 
-#: mainwindow.c:669
+#: mainwindow.c:671
 msgid "_Show HTML Source"
 msgstr "HTML-_Source anzeigen"
 
-#: mainwindow.c:665
+#: mainwindow.c:667
 msgid "_View"
 msgstr "_Ansicht"
 
-#: mainwindow.c:322
+#: mainwindow.c:320
 msgid "_Yes"
 msgstr "_Ja"

@@ -390,11 +390,11 @@ static void menu_file_open(GtkMenuItem* item, WemedWindow* w) {
 	gtk_widget_destroy (dialog);
 }
 
-static void menu_file_new_blank(GtkMenuItem* item, WemedWindow* w) {
+static void menu_file_new(GtkMenuItem* item, WemedWindow* w) {
 	if(confirm_close(w) == FALSE) return;
 
 	close_document(w);
-	GString s = {0, 0, 0};
+	GString s = {0};
 	set_model(w, mime_model_new(s));
 }
 
@@ -610,11 +610,11 @@ static GtkWidget* build_menubar(WemedWindow* w) {
 		GtkWidget* file = gtk_menu_item_new_with_mnemonic(_("_File"));
 		GtkWidget* filemenu = gtk_menu_new();
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(file), filemenu);
-		{ // File -> New Blank Document
-			GtkWidget* blank = gtk_menu_item_new_with_mnemonic(_("New _Blank Document"));
-			g_signal_connect(G_OBJECT(blank), "activate", G_CALLBACK(menu_file_new_blank), w);
-			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), blank);
-			gtk_widget_add_accelerator(blank, "activate", acc, GDK_KEY_n, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
+		{ // File -> New Document
+			GtkWidget* newdoc = gtk_menu_item_new_with_mnemonic(_("New _Document"));
+			g_signal_connect(G_OBJECT(newdoc), "activate", G_CALLBACK(menu_file_new), w);
+			gtk_menu_shell_append(GTK_MENU_SHELL(filemenu), newdoc);
+			gtk_widget_add_accelerator(newdoc, "activate", acc, GDK_KEY_n, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
 		}
 		{ // File -> New Email Template
 			GtkWidget* email = gtk_menu_item_new_with_mnemonic(_("New _Email Template"));

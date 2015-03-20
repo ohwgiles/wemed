@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wemed\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-03-22 11:43+0100\n"
+"POT-Creation-Date: 2015-03-20 22:33+0100\n"
 "PO-Revision-Date: 2014-04-15 15:02+0100\n"
 "Last-Translator: \n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,7 +26,7 @@ msgstr "左对齐"
 msgid "Align right"
 msgstr "右对齐"
 
-#: mainwindow.c:367
+#: mainwindow.c:365
 msgid "Are you sure you want to reload the file from disk?"
 msgstr "您确定要重新载入文件？"
 
@@ -38,15 +38,15 @@ msgstr "粗体"
 msgid "Cancel"
 msgstr "取消"
 
-#: mainwindow.c:682
+#: mainwindow.c:684
 msgid "Display _Images"
 msgstr "显示图片(_I)"
 
-#: mainwindow.c:734
+#: mainwindow.c:736
 msgid "E_xport..."
 msgstr "导出(_X)"
 
-#: mainwindow.c:727
+#: mainwindow.c:729
 msgid "Edit _With..."
 msgstr "用其他应用编辑(_W)"
 
@@ -55,15 +55,15 @@ msgstr "用其他应用编辑(_W)"
 msgid "Edit with %s"
 msgstr "用《%s》编辑"
 
-#: mainwindow.c:721
+#: mainwindow.c:723
 msgid "Edit..."
 msgstr "编辑(_E)"
 
-#: mainwindow.c:321
+#: mainwindow.c:319
 msgid "File has been modified. Would you like to save it?"
 msgstr "文件右修改。您要保存吗？"
 
-#: mainwindow.c:689
+#: mainwindow.c:691
 msgid "Inline Parts in _Tree"
 msgstr "显示之内的部分在树中(_T)"
 
@@ -75,27 +75,27 @@ msgstr "插入图片"
 msgid "Italic"
 msgstr "斜体"
 
-#: mainwindow.c:757
+#: mainwindow.c:759
 msgid "MIME Headers"
 msgstr "MIME头部(_M)"
 
-#: mainwindow.c:714
+#: mainwindow.c:716
 msgid "New Part From _File"
 msgstr "从文件新建(_F)"
 
-#: mainwindow.c:612
-msgid "New _Blank Document"
+#: mainwindow.c:614
+msgid "New _Document"
 msgstr "新建(_N)"
 
-#: mainwindow.c:618
+#: mainwindow.c:620
 msgid "New _Email Template"
 msgstr "从电子邮件模板新建(_E)"
 
-#: mainwindow.c:708
+#: mainwindow.c:710
 msgid "New _Empty Part"
 msgstr "新建空的(_M)"
 
-#: mainwindow.c:702
+#: mainwindow.c:704
 msgid "New _Multipart Node"
 msgstr "新建Multipart节(_M)"
 
@@ -103,15 +103,15 @@ msgstr "新建Multipart节(_M)"
 msgid "Open"
 msgstr "打开"
 
-#: mainwindow.c:379 mainwindow.c:494
+#: mainwindow.c:377 mainwindow.c:496
 msgid "Open File"
 msgstr "打开文件"
 
-#: mainwindow.c:275 mainwindow.c:526
+#: mainwindow.c:272 mainwindow.c:528
 msgid "Save File"
 msgstr "保存文件"
 
-#: mainwindow.c:643
+#: mainwindow.c:645
 msgid "Save _As..."
 msgstr "保存为(_A)"
 
@@ -127,7 +127,7 @@ msgstr "选择图片"
 msgid "Strikethrough"
 msgstr "删除线"
 
-#: mainwindow.c:578
+#: mainwindow.c:580
 msgid "The following are the most useful MIME headers:"
 msgstr "一些有用的MIME头部:"
 
@@ -135,40 +135,40 @@ msgstr "一些有用的MIME头部:"
 msgid "Underline"
 msgstr "下划线"
 
-#: mainwindow.c:752
+#: mainwindow.c:754
 msgid "Visit _Website"
 msgstr "网站(_W)"
 
-#: mainwindow.c:764
+#: mainwindow.c:766
 msgid "_About Wemed"
 msgstr "关于(_A)"
 
-#: mainwindow.c:275 mainwindow.c:324 mainwindow.c:382 mainwindow.c:449
-#: mainwindow.c:497 mainwindow.c:529
+#: mainwindow.c:272 mainwindow.c:322 mainwindow.c:380 mainwindow.c:449
+#: mainwindow.c:499 mainwindow.c:531
 msgid "_Cancel"
 msgstr "取消(_C)"
 
-#: mainwindow.c:560 mainwindow.c:650
+#: mainwindow.c:562 mainwindow.c:652
 msgid "_Close"
 msgstr "关闭(_W)"
 
-#: mainwindow.c:741
+#: mainwindow.c:743
 msgid "_Delete"
 msgstr "删除(_D)"
 
-#: mainwindow.c:608
+#: mainwindow.c:610
 msgid "_File"
 msgstr "文件(_F)"
 
-#: mainwindow.c:748
+#: mainwindow.c:750
 msgid "_Help"
 msgstr "帮助(_H)"
 
-#: mainwindow.c:676
+#: mainwindow.c:678
 msgid "_Load Remote Resources"
 msgstr "显示文件以外的资料(_L)"
 
-#: mainwindow.c:323
+#: mainwindow.c:321
 msgid "_No"
 msgstr "不要(_N)"
 
@@ -176,38 +176,38 @@ msgstr "不要(_N)"
 msgid "_OK"
 msgstr "确定(_O)"
 
-#: mainwindow.c:383 mainwindow.c:498
+#: mainwindow.c:381 mainwindow.c:500
 msgid "_Open"
 msgstr "打开(_O)"
 
-#: mainwindow.c:624
+#: mainwindow.c:626
 msgid "_Open..."
 msgstr "打开(_O)"
 
-#: mainwindow.c:698
+#: mainwindow.c:700
 msgid "_Part"
 msgstr "部分(_P)"
 
-#: mainwindow.c:657
+#: mainwindow.c:659
 msgid "_Quit"
 msgstr "退出(_Q)"
 
-#: mainwindow.c:630
+#: mainwindow.c:632
 msgid "_Revert to Saved"
 msgstr "重新载入(_R)"
 
-#: mainwindow.c:275 mainwindow.c:531 mainwindow.c:637
+#: mainwindow.c:272 mainwindow.c:533 mainwindow.c:639
 msgid "_Save"
 msgstr "保存(_S)"
 
-#: mainwindow.c:669
+#: mainwindow.c:671
 msgid "_Show HTML Source"
 msgstr "显示HTML源码(_S)"
 
-#: mainwindow.c:665
+#: mainwindow.c:667
 msgid "_View"
 msgstr "查看(_V)"
 
-#: mainwindow.c:322
+#: mainwindow.c:320
 msgid "_Yes"
 msgstr "要(_Y)"
