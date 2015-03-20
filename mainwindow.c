@@ -822,6 +822,8 @@ WemedWindow* wemed_window_create() {
 
 	close_document(w); // initially, all widgets should be disabled etc.
 
+	gtk_paned_set_position(GTK_PANED(w->paned), 160);
+
 	return w;
 }
 

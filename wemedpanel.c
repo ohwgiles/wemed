@@ -283,7 +283,7 @@ static void wemed_panel_init(WemedPanel* wp) {
 	GtkWidget* scroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(scroll), d->headerview);
-	gtk_paned_pack1(GTK_PANED(paned), scroll, FALSE, FALSE);
+	gtk_paned_pack1(GTK_PANED(paned), scroll, TRUE, FALSE);
 
 	GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_box_pack_start(GTK_BOX(box), toolbar, FALSE, FALSE, 0);
@@ -296,6 +296,8 @@ static void wemed_panel_init(WemedPanel* wp) {
 	gtk_box_pack_end(GTK_BOX(box), d->progress_bar, FALSE, FALSE, 3);
 	
 	gtk_paned_pack2(GTK_PANED(paned), box, TRUE, TRUE);
+
+	gtk_paned_set_position(paned, 100);
 }
 
 static void wemed_panel_class_init(WemedPanelClass* class) {
