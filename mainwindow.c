@@ -154,6 +154,13 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	g_free(headers.str);
 }
 
+static void set_dirtied(GObject* caller, WemedWindow* w) {
+	w->dirty = TRUE;
+	if(w->filename)
+		gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
+	gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
+}
+
 // update the internal model based on the changes the user has made in the view.
 // this involves fetching header and content data from the view and needs to be
 // called before the user changes to a different part or performs any model manipulations
@@ -187,9 +194,7 @@ static void register_changes(WemedWindow* w) {
 	// now do the headers
 	GString new_headers = wemed_panel_get_headers(WEMED_PANEL(w->panel));
 	if(strcmp(new_headers.str,g_mime_object_get_headers(w->current_part)) != 0) {
-		w->dirty = TRUE;
-		gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
-		gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
+		set_dirtied(NULL, w);
 		GMimeObject* new_part = mime_model_update_header(w->model, w->current_part, new_headers);
 		// a header change can cause a display change in the panel,
 		// for example changing mime type or encoding. This causes the
@@ -201,12 +206,6 @@ static void register_changes(WemedWindow* w) {
 		}
 	}
 	free(new_headers.str);
-}
-
-static void set_dirtied(GObject* caller, WemedWindow* w) {
-	w->dirty = TRUE;
-	gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
-	gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
 }
 
 static void close_document(WemedWindow* w) {
@@ -250,9 +249,7 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	free(buffer);
 	// now we've come back from the external program, read the data back in and save it
 	GString new_content = slurp_and_close(fopen(tmpfile, "rb"));
-	w->dirty = TRUE;
-	gtk_widget_set_sensitive(w->menu_widgets->revert, TRUE);
-	gtk_widget_set_sensitive(w->menu_widgets->save, TRUE);
+	set_dirtied(NULL, w);
 	mime_model_update_content(w->model, part, new_content);
 	set_current_part(w, GMIME_OBJECT(part));
 	free(new_content.str);
@@ -456,7 +453,7 @@ static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
 	gtk_container_add(GTK_CONTAINER(content), combo);
 	gtk_widget_show_all(dialog);
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-		set_dirtied(0, w);
+		set_dirtied(NULL, w);
 		mime_model_new_node(w->model, w->current_part, gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo)));
 		expand_mime_tree_view(w);
 	}
