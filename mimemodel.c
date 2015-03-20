@@ -171,10 +171,15 @@ void mime_model_part_replace(MimeModel* m, GMimeObject* part_old, GMimeObject* p
 	GtkTreeIter it = iter_from_obj(m, part_old);
 
 	GtkTreeIter parent = parent_node(m, it);
-	GMimeMultipart* multipart = GMIME_MULTIPART(obj_from_iter(m, parent));
-	int index = g_mime_multipart_index_of(multipart, part_old);
-	GMimeObject* part_old_ = g_mime_multipart_replace(multipart, index, part_new); // already have this
-	g_object_unref(part_old_);
+	if(parent.stamp == 0) {
+		// trying to replace the root element (which has no parent)
+		m->message = part_new;
+	} else {
+		GMimeMultipart* multipart = GMIME_MULTIPART(obj_from_iter(m, parent));
+		int index = g_mime_multipart_index_of(multipart, part_old);
+		g_mime_multipart_replace(multipart, index, part_new); // already have this
+	}
+	g_object_unref(part_old);
 	add_part_to_store(m, &it, part_new);
 }
 
