@@ -231,6 +231,18 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, GStri
 	return part_new;
 }
 
+GMimeObject* mime_model_find_mixed_parent(MimeModel* m, GMimeObject* part) {
+	GtkTreeIter parent_iter;
+	parent_iter = parent_node(m, iter_from_obj(m, part));
+	if(parent_iter.stamp == 0)
+		return NULL;
+	GMimeObject* parent = obj_from_iter(m, parent_iter);
+	GMimeContentType* ct = g_mime_object_get_content_type(parent);
+	if(g_mime_content_type_is_type(ct,"multipart","related") || g_mime_content_type_is_type(ct,"multipart","mixed"))
+			return parent;
+	return mime_model_find_mixed_parent(m, parent);
+}
+
 GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type_string) {
 	GMimeMultipart* parent_part = NULL;
 	GtkTreeIter parent_iter;

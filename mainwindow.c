@@ -465,10 +465,11 @@ static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
 	expand_mime_tree_view(w);
 }
 
-static char* import_file_into_tree(WemedWindow* w, const char* filename, const char* disposition) {
+static char* import_file_into_tree(WemedWindow* w,  GMimeObject* parent_or_sibling, const char* filename, const char* disposition) {
 	static int partnum = 0;
 	char* mime_type = get_file_mime_type(filename);
-	GMimePart* part = GMIME_PART(mime_model_new_node(w->model, w->current_part, mime_type));
+	GMimePart* part = GMIME_PART(mime_model_new_node(w->model, parent_or_sibling, mime_type));
+	g_mime_part_set_content_encoding(part, GMIME_CONTENT_ENCODING_BASE64);
 	mime_model_update_content(w->model, part, slurp_and_close(fopen(filename, "rb")));
 	char* cid;
 	asprintf(&cid, "part%d_%u", partnum++, (unsigned int)time(0));
@@ -487,7 +488,8 @@ static char* import_file_into_tree(WemedWindow* w, const char* filename, const c
 }
 
 static char* import_file_cb(WemedPanel* p, const char* filename, WemedWindow* w) {
-	return import_file_into_tree(w, filename, GMIME_DISPOSITION_INLINE);
+	GMimeObject* parent = mime_model_find_mixed_parent(w->model, w->current_part);
+	return import_file_into_tree(w, parent?:w->current_part, filename, GMIME_DISPOSITION_INLINE);
 }
 
 static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
@@ -500,7 +502,7 @@ static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		import_file_into_tree(w, filename, GMIME_DISPOSITION_ATTACHMENT);
+		import_file_into_tree(w, w->current_part, filename, GMIME_DISPOSITION_ATTACHMENT);
 		free(filename);
 	}
 

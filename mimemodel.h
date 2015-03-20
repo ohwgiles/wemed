@@ -22,7 +22,7 @@ void mime_model_create_blank_email(MimeModel* m);
 GtkTreeModel* mime_model_get_gtk_model(MimeModel*);
 void mime_model_filter_inline(MimeModel*, gboolean);
 
-const char* mime_model_content_type(GMimeObject* obj);
+const char *mime_model_content_type(GMimeObject* obj);
 
 GMimeObject* mime_model_root(MimeModel*);
 
@@ -30,6 +30,8 @@ GString mime_model_part_content(GMimeObject* part, gboolean in_data_uri);
 GString mime_model_part_headers(GMimeObject* part);
 
 GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, GString new_header);
+
+GMimeObject* mime_model_find_mixed_parent(MimeModel* m, GMimeObject* part);
 
 void mime_model_update_content(MimeModel*, GMimePart* obj, GString new_content);
 
