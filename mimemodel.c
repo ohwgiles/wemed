@@ -128,22 +128,16 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 
 
 void mime_model_create_blank_email(MimeModel* m) {
-	// get user and hostname to generate a sample From email address
-	char host[HOST_NAME_MAX];
-	gethostname(host, HOST_NAME_MAX);
-	char from[512];
-	sprintf(from, "%s <%s@%s>", getlogin(), getlogin(), host);
-	
-	//m->message = GMIME_OBJECT(g_mime_multipart_new());
-	g_mime_object_append_header(m->message, "To", "Example <example@example.com>");
-	g_mime_object_append_header(m->message, "From", from);
+	g_mime_object_append_header(m->message, "To", "");
+	g_mime_object_append_header(m->message, "From", "");
+	g_mime_object_append_header(m->message, "Subject", "");
 	g_mime_object_append_header(m->message, "MIME-Version", "1.0");
-	g_mime_object_append_header(m->message, "Subject", "(no subject)");
 	// force boundary generation
 	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
 	// add a multipart/alternative with text and html parts
 	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative");
-	mime_model_new_node(m, alternative, "text/html");
+	GMimeObject* related = mime_model_new_node(m, alternative, "multipart/related");
+	mime_model_new_node(m, related, "text/html");
 	mime_model_new_node(m, alternative, "text/plain");
 }
 
