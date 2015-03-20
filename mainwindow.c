@@ -274,7 +274,8 @@ static gboolean menu_file_save_as(GtkMenuItem* item, WemedWindow* w) {
 
 	GtkWidget *dialog = gtk_file_chooser_dialog_new (_("Save File"), GTK_WINDOW(w->root_window), GTK_FILE_CHOOSER_ACTION_SAVE, _("_Cancel"), GTK_RESPONSE_CANCEL, _("_Save"), GTK_RESPONSE_ACCEPT, NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
-	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), w->filename);
+	if(w->filename)
+		gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), w->filename);
 
 	gboolean ret = FALSE;
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
