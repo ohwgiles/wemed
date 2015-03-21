@@ -1,5 +1,5 @@
 [Desktop Entry]
-Version=0.1
+Version=0.4
 Name=Wemed MIME Editor
 Comment=View and edit complex MIME documents
 Exec=wemed %U
