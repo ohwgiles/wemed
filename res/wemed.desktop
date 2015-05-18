@@ -2,7 +2,7 @@
 Version=0.4
 Name=Wemed MIME Editor
 Comment=View and edit complex MIME documents
-Exec=wemed %U
+Exec=wemed %f
 Terminal=false
 Icon=wemed
 Type=Application
