@@ -5,31 +5,32 @@
 cmake_minimum_required(VERSION 2.6)
 project(wemed C)
 
+# Dependencies
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 pkg_check_modules(WEBKITGTK3 REQUIRED webkitgtk-3.0)
 pkg_check_modules(GMIME26 REQUIRED gmime-2.6)
 
+# Application
 include_directories(${GTK3_INCLUDE_DIRS} ${WEBKITGTK3_INCLUDE_DIRS} ${GMIME26_INCLUDE_DIRS})
 link_directories(${GTK3_LIBRARY_DIRS} ${WEBKITGTK3_LIBRARY_DIRS} ${GMIME26_LIBRARY_DIRS})
-add_definitions(${GTK3_CFLAGS_OTHER} ${WEBKITGTK3_CFLAGS_OTHER} ${GMIME26_CFLAGS_OTHER})
-
-add_definitions(-std=gnu99 -Wall -Wextra -Werror -Wno-error=unused -Wno-unused-parameter -Wno-missing-field-initializers -Wno-error=unused-result)
-
+add_definitions(-std=gnu99 ${GTK3_CFLAGS_OTHER} ${WEBKITGTK3_CFLAGS_OTHER} ${GMIME26_CFLAGS_OTHER})
+set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -Werror -Wno-error=unused -Wno-unused-parameter -Wno-missing-field-initializers -Wno-error=unused-result ${CMAKE_C_FLAGS_DEBUG}")
 set(sources main.c exec.c openwith.c mainwindow.c mimeapp.c mimemodel.c mimetree.c wemedpanel.c)
 add_executable(wemed ${sources})
 set_target_properties(wemed PROPERTIES COMPILE_DEFINITIONS "_GNU_SOURCE")
 target_link_libraries(wemed ${GTK3_LIBRARIES} ${WEBKITGTK3_LIBRARIES} ${GMIME26_LIBRARIES}) 
 
+# Translations
 add_custom_target(build-pot
 	COMMAND xgettext -LC -k_ -kN_ ${sources} -o po/wemed.pot --package-name=wemed
 	WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 	COMMENT "Building the translation template" VERBATIM)
-
 find_package(Gettext REQUIRED)
-set (po_files po/cs.po po/he.po po/de.po po/zh_CN.po)
+set(po_files po/cs.po po/he.po po/de.po po/zh_CN.po)
 GETTEXT_CREATE_TRANSLATIONS(${PROJECT_SOURCE_DIR}/po/wemed.pot ALL ${po_files})
 
+# Installation
 install(TARGETS wemed RUNTIME DESTINATION bin)
 install(FILES res/16.png DESTINATION share/icons/hicolor/16x16/apps RENAME wemed.png)
 install(FILES res/22.png DESTINATION share/icons/hicolor/22x22/apps RENAME wemed.png)
