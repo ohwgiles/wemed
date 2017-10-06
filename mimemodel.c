@@ -363,11 +363,12 @@ void mime_model_free(MimeModel* m) {
 	}
 }
 
-char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data) {
+GByteArray* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data) {
 	MimeModel* m = user_data;
 	GMimeObject* part = g_mime_multipart_get_subpart_from_content_id(GMIME_MULTIPART(m->message), cid);
-	// this works since &GString.str == &GString
-	return mime_model_part_content(part, TRUE).str;
+	// TODO: directly from bytearray
+	GString str = mime_model_part_content(part, TRUE);
+	return g_byte_array_new_take((guint8*)str.str, str.len);
 }
 
 static gint64 stream_test_len(GMimeStream* stream) {
@@ -404,63 +405,35 @@ GString mime_model_part_headers(GMimeObject* obj) {
 	ret.len = ret.allocated_len = strlen(ret.str);
 	return ret;
 }
+
 GString mime_model_part_content(GMimeObject* obj, gboolean in_data_uri) {
 	GString ret = {0, 0, 0};
-	if(!GMIME_IS_PART(obj)) return ret;
+	if(!GMIME_IS_PART(obj))
+		return ret;
 
-	const char* content_type_name = mime_model_content_type(obj);
 	GMimePart* part = GMIME_PART(obj);
 
 	GMimeDataWrapper* data_obj = g_mime_part_get_content_object(part);
 	if(data_obj == NULL) // empty part
 		return ret;
+
 	GMimeStream* source = g_mime_data_wrapper_get_stream(data_obj);
 	g_mime_stream_reset(source);
 	GMimeContentEncoding encoding = g_mime_part_get_content_encoding(part);
-	// if the content type is text, return a text string
-	if(in_data_uri) { // return data encoded in BASE64 so it can be displayed as a data: URI
-		// construct data:uri
-		int header_length = 5 /*data:*/ + strlen(content_type_name) + 8 /*;base64,*/;
-		if(encoding == GMIME_CONTENT_ENCODING_BASE64) { // optimisation: no conversion required
-			gint64 len = g_mime_stream_length(source);
-			gstring_allocate(&ret, header_length + len + 1);
-			g_snprintf(ret.str, header_length+1, "data:%s;base64,", content_type_name);
-			g_mime_stream_reset(source);
-			g_mime_stream_read(source, &ret.str[header_length], len);
-			ret.str[header_length + len] = '\0';
-		} else {
-			// set up encoding and decoding sequence
-			GMimeFilter* decoding_filter = g_mime_filter_basic_new(encoding, FALSE);
-			GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_BASE64, TRUE);
-			GMimeStream* stream_filter = g_mime_stream_filter_new(source);
-			g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), decoding_filter);
-			g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), encoding_filter);
-			// first do a dummy conversion to get space requirements
-			gint64 len = stream_test_len(stream_filter);
-			// now do the real thing
-			g_mime_stream_reset(source); // todo needed?
-			gstring_allocate(&ret, header_length + len + 1);
-			g_snprintf(ret.str, header_length+1, "data:%s;base64,", content_type_name);
-			write_stream_to_mem(stream_filter, &ret.str[header_length], len);
-			g_object_unref(decoding_filter);
-			g_object_unref(encoding_filter);
-			g_object_unref(stream_filter);
-		}
-	} else { // convert to raw text
-		GMimeFilter* decoding_filter = g_mime_filter_basic_new(encoding, FALSE);
-		GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_BINARY, TRUE);
-		GMimeStream* stream_filter = g_mime_stream_filter_new(source);
-		g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), decoding_filter);
-		g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), encoding_filter);
-		// get the length of the decoded data
-		gint64 decoded_length = stream_test_len(stream_filter);
-		// by allocating our own array we control its length
-		gstring_allocate(&ret, decoded_length+1); // null termination
-		write_stream_to_mem(stream_filter, ret.str, decoded_length);
-		g_object_unref(decoding_filter);
-		g_object_unref(encoding_filter);
-		g_object_unref(stream_filter);
-	}
+
+	GMimeFilter* decoding_filter = g_mime_filter_basic_new(encoding, FALSE);
+	GMimeFilter* encoding_filter = g_mime_filter_basic_new(GMIME_CONTENT_ENCODING_BINARY, TRUE);
+	GMimeStream* stream_filter = g_mime_stream_filter_new(source);
+	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), decoding_filter);
+	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), encoding_filter);
+	// get the length of the decoded data
+	gint64 decoded_length = stream_test_len(stream_filter);
+	// by allocating our own array we control its length
+	gstring_allocate(&ret, decoded_length+1); // null termination
+	write_stream_to_mem(stream_filter, ret.str, decoded_length);
+	g_object_unref(decoding_filter);
+	g_object_unref(encoding_filter);
+	g_object_unref(stream_filter);
 
 	return ret;
 }

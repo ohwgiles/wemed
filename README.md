@@ -5,8 +5,6 @@ WEbkit-based Mime EDitor.
 
 Wemed can view, edit and create documents in MIME format. This includes email messages (.eml files) and MIME HTML archives (.mht or .mhtml files). Wemed uses Webkit to display HTML.
 
-Wemed is in beta. It is useful, but still has some rough edges.
-
 See
 - http://en.wikipedia.org/wiki/MIME
 - http://en.wikipedia.org/wiki/MHTML
@@ -15,15 +13,15 @@ See
 Building
 --------
 
-Wemed depends on webkitgtk-3.0 and gmime-2.6.
+Wemed depends on webkit2gtk-4.0 and gmime-2.6.
 
 Arch Linux
 
-	# pacman -S gmime webkitgtk
+	# pacman -S gmime webkit2gtk
 
 Ubuntu/Debian
 
-	# apt-get install libgtk-3-dev libgmime-2.6-dev libwebkitgtk-3.0-dev
+	# apt-get install libgtk-3-dev libgmime-2.6-dev libwebkit2gtk-4.0-dev
 
 From here the process is standard:
 
@@ -31,6 +29,4 @@ From here the process is standard:
 	$ mkdir -p path/to/build && cd path/to/build
 	$ cmake path/to/source
 	$ make
-
-
 

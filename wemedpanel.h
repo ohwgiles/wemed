@@ -47,10 +47,7 @@ void wemed_panel_display_images(WemedPanel* wp, gboolean en);
 GString wemed_panel_get_headers(WemedPanel* wp);
 
 // Return the (possibly modified) text or HTML-source content
-GString wemed_panel_get_content(WemedPanel* wp, gboolean as_source);
-
-// Whether the passed mime type can be displayed in this object
-gboolean wemed_panel_supported_type(WemedPanel* wp, const char* mime_type);
+GString wemed_panel_get_content(WemedPanel* wp);
 
 void wemed_panel_clear(WemedPanel* wp);
 

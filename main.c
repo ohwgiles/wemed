@@ -1,10 +1,10 @@
-/* Copyright 2013 Oliver Giles
- * This file is part of Wemed. Wemed is licensed under the 
+/* Copyright 2013-2017 Oliver Giles
+ * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
 #include <gtk/gtk.h>
 #include <gmime/gmime.h>
-#include <webkit/webkitglobals.h>
+#include <webkit2/webkit2.h>
 #include "mimemodel.h"
 #include "mainwindow.h"
 
@@ -18,7 +18,6 @@ int main(int argc, char** argv) {
 	textdomain("wemed");
 	gtk_init(&argc, &argv);
 	system_icon_theme = gtk_icon_theme_get_default();
-	webkit_set_cache_model(WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
 	g_mime_init(0);
 
 	WemedWindow* w = wemed_window_create();

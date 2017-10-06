@@ -1,4 +1,4 @@
-/* Copyright 2013 Oliver Giles
+/* Copyright 2013-2017 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -92,6 +92,8 @@ static void set_model(WemedWindow* w, MimeModel* m) {
 // change in the MIME tree view widget
 static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	w->current_part = part;
+	if(part == NULL)
+		return;
 
 	GString headers = mime_model_part_headers(part);
 	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
@@ -122,15 +124,7 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 		}
 		
 		// fetch the part content
-		if(strncmp(mime_type, "text/", 5) == 0) {
-			content = mime_model_part_content(part, FALSE);
-		} else if(wemed_panel_supported_type(WEMED_PANEL(w->panel), mime_type)) {
-			content = mime_model_part_content(part, TRUE);
-		}
-		
-		// the part could be empty, meaning content.str == 0. compensate:
-		if(content.str == 0)
-			content.str = strdup("");
+		content = mime_model_part_content(part, FALSE);
 
 		// determine the external program for the given mime type and update the menu accordingly
 		free(w->mime_app.name); // clean up the last one
@@ -172,10 +166,9 @@ static void register_changes(WemedWindow* w) {
 	if(GMIME_IS_PART(w->current_part)) {
 		const char* ct = mime_model_content_type(w->current_part);
 		if(strncmp(ct, "text/", 5) == 0) {
-			gboolean as_html_source = (strcmp(ct, "text/html") == 0);
 			// webkit returns content in utf-8, so we have to convert it back 
 			// if the desired encoding is different
-			GString new_content = wemed_panel_get_content(WEMED_PANEL(w->panel), as_html_source);
+			GString new_content = wemed_panel_get_content(WEMED_PANEL(w->panel));
 			const char* charset = g_mime_object_get_content_type_parameter(w->current_part, "charset");
 			if(charset && strcmp("utf8", charset) != 0) {
 				gsize sz;
@@ -593,7 +586,7 @@ static void menu_help_about(GtkMenuItem* item, WemedWindow* w) {
 			"version", "0.1",
 			"logo", w->icon,
 			"license-type", GTK_LICENSE_GPL_3_0,
-			"copyright", "2013 Oliver Giles",
+			"copyright", "2013-2017 Oliver Giles",
 			"website", "http://wemed.ohwg.net",
 			NULL);
 }

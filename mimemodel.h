@@ -47,7 +47,7 @@ void mime_model_part_remove(MimeModel* m, GMimeObject* part);
 // write the whole message to a file in MIME format
 gboolean mime_model_write_to_file(MimeModel* m, FILE* fp);
 
-char* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data);
+GByteArray* mime_model_object_from_cid(GObject* emitter, const char* cid, gpointer user_data);
 
 void mime_model_free(MimeModel*);
 
