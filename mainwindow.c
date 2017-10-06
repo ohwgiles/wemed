@@ -544,7 +544,7 @@ static void menu_part_delete(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static void menu_help_website(GtkMenuItem* item, WemedWindow* w) {
-	gtk_show_uri(NULL, "http://wemed.ohwg.net", 0, NULL);
+	gtk_show_uri_on_window(GTK_WINDOW(w->root_window), "http://wemed.ohwg.net", gtk_get_current_event_time(), NULL);
 }
 
 static void menu_help_headers(GtkMenuItem* item, WemedWindow* w) {
