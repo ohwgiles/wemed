@@ -456,6 +456,7 @@ static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
 
 static void menu_part_new_empty(GtkMenuItem* item, WemedWindow* w) {
 	mime_model_new_node(w->model, w->current_part, "text/plain");
+	set_dirtied(NULL, w);
 	expand_mime_tree_view(w);
 }
 
@@ -542,6 +543,7 @@ static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
 
 static void menu_part_delete(GtkMenuItem* item, WemedWindow* w) {
 	mime_model_part_remove(w->model, w->current_part);
+	set_dirtied(NULL, w);
 }
 
 static void menu_help_website(GtkMenuItem* item, WemedWindow* w) {
