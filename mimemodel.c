@@ -1,4 +1,4 @@
-/* Copyright 2013 Oliver Giles
+/* Copyright 2013-2017 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -22,26 +22,35 @@ struct MimeModel_S {
 };
 
 static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part) {
-	GdkPixbuf* icon;
+	GdkPixbuf* icon = NULL;
 	const char* name;
+	const char* icon_name;
+
 	if(GMIME_IS_PART(part)) {
-		char* icon_name = strdup(mime_model_content_type(part));
-		name = g_mime_part_get_filename(GMIME_PART(part)) ?: strdup(icon_name);
-		for(char* p = strchr(icon_name,'/'); p != NULL; p = strchr(p, '/')) *p = '-';
-		icon = gtk_icon_theme_load_icon(system_icon_theme, icon_name, 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
-		free(icon_name);
+		icon_name = mime_model_content_type(part);
+		name = g_mime_part_get_filename(GMIME_PART(part)) ?: mime_model_content_type(part);
 	} else {
-		icon = gtk_icon_theme_load_icon(system_icon_theme, "package", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+		icon_name = "package";
 		name = mime_model_content_type(part);
+	}
+
+	GIcon* gicon = g_content_type_get_icon(icon_name);
+	GtkIconInfo *icon_info = gtk_icon_theme_lookup_by_gicon(system_icon_theme, gicon, 16, 0);
+	g_object_unref(gicon);
+	if(icon_info) {
+		icon = gtk_icon_info_load_icon(icon_info, NULL);
+		g_object_unref(icon_info);
 	}
 
 	// add to tree
 	gtk_tree_store_set(m->store, iter,
-			MIME_MODEL_COL_OBJECT, part,
-			MIME_MODEL_COL_ICON, icon,
-			MIME_MODEL_COL_NAME, name,
-			-1);
-	g_object_unref(icon);
+	                   MIME_MODEL_COL_OBJECT, part,
+	                   MIME_MODEL_COL_ICON, icon,
+	                   MIME_MODEL_COL_NAME, name,
+	                   -1);
+
+	if(icon)
+		g_object_unref(icon);
 }
 
 
