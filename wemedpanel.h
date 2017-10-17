@@ -1,6 +1,6 @@
 #ifndef WEMEDPANEL_H
 #define WEMEDPANEL_H
-/* Copyright 2013 Oliver Giles
+/* Copyright 2013-2017 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -50,6 +50,8 @@ GString wemed_panel_get_headers(WemedPanel* wp);
 GString wemed_panel_get_content(WemedPanel* wp);
 
 void wemed_panel_clear(WemedPanel* wp);
+
+void wemed_panel_set_clean(WemedPanel* wp);
 
 #endif
 

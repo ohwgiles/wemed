@@ -13,17 +13,18 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 pkg_check_modules(WEBKITGTK3 REQUIRED webkit2gtk-4.0)
 pkg_check_modules(GMIME26 REQUIRED gmime-2.6)
+pkg_check_modules(GTKSOURCEVIEW3 REQUIRED gtksourceview-3.0)
 
 # Application
-include_directories(${GTK3_INCLUDE_DIRS} ${WEBKITGTK3_INCLUDE_DIRS} ${GMIME26_INCLUDE_DIRS})
-link_directories(${GTK3_LIBRARY_DIRS} ${WEBKITGTK3_LIBRARY_DIRS} ${GMIME26_LIBRARY_DIRS})
+include_directories(${GTK3_INCLUDE_DIRS} ${WEBKITGTK3_INCLUDE_DIRS} ${GMIME26_INCLUDE_DIRS} ${GTKSOURCEVIEW3_INCLUDE_DIRS})
+link_directories(${GTK3_LIBRARY_DIRS} ${WEBKITGTK3_LIBRARY_DIRS} ${GMIME26_LIBRARY_DIRS} ${GTKSOURCEVIEW3_LIBRARY_DIRS})
 add_definitions(-std=gnu99 ${GTK3_CFLAGS_OTHER} ${WEBKITGTK3_CFLAGS_OTHER} ${GMIME26_CFLAGS_OTHER})
 set(CMAKE_C_FLAGS "-DWEMED_WEBEXT_DIR=\\\"${CMAKE_INSTALL_PREFIX}/${WEMED_WEBEXT_DIR}\\\" ${CMAKE_C_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -Werror -Wno-error=unused -Wno-error=unused-function -Wno-unused-parameter -Wno-missing-field-initializers -Wno-error=unused-result ${CMAKE_C_FLAGS_DEBUG}")
 set(sources main.c exec.c openwith.c mainwindow.c mimeapp.c mimemodel.c mimetree.c wemedpanel.c)
 add_executable(wemed ${sources})
 set_target_properties(wemed PROPERTIES COMPILE_DEFINITIONS "_GNU_SOURCE")
-target_link_libraries(wemed ${GTK3_LIBRARIES} ${WEBKITGTK3_LIBRARIES} ${GMIME26_LIBRARIES}) 
+target_link_libraries(wemed ${GTK3_LIBRARIES} ${WEBKITGTK3_LIBRARIES} ${GMIME26_LIBRARIES} ${GTKSOURCEVIEW3_LIBRARIES})
 
 # Translations
 add_custom_target(build-pot

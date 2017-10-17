@@ -393,16 +393,12 @@ static gsize write_stream_to_mem(GMimeStream* stream, gchar* ptr, gint len) {
 	g_object_unref(mem_stream);
 	return sz;
 }
-static void gstring_allocate(GString* str, gsize len) {
-	str->str = g_malloc(len);
-	str->len = len;
-	str->allocated_len = len;
-}
 
 GString mime_model_part_headers(GMimeObject* obj) {
 	GString ret;
 	ret.str = g_mime_object_get_headers(obj);
-	ret.len = ret.allocated_len = strlen(ret.str);
+	ret.len = strlen(ret.str);
+	ret.allocated_len = ret.len + 1;
 	return ret;
 }
 
@@ -429,7 +425,9 @@ GString mime_model_part_content(GMimeObject* obj, gboolean in_data_uri) {
 	// get the length of the decoded data
 	gint64 decoded_length = stream_test_len(stream_filter);
 	// by allocating our own array we control its length
-	gstring_allocate(&ret, decoded_length+1); // null termination
+	ret.str = malloc(decoded_length+1); // null termination
+	ret.allocated_len = decoded_length+1;
+	ret.len = decoded_length;
 	write_stream_to_mem(stream_filter, ret.str, decoded_length);
 	g_object_unref(decoding_filter);
 	g_object_unref(encoding_filter);

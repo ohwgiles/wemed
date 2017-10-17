@@ -255,6 +255,7 @@ static void set_clean(WemedWindow* w) {
 	w->dirty = FALSE;
 	gtk_widget_set_sensitive(w->menu_widgets->revert, FALSE);
 	gtk_widget_set_sensitive(w->menu_widgets->save, FALSE);
+	wemed_panel_set_clean(WEMED_PANEL(w->panel));
 }
 
 

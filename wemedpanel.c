@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <webkit2/webkit2.h>
 #include <gmime/gmime.h>
+#include <gtksourceview/gtksource.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -36,13 +37,16 @@ static gint wemed_panel_signals[WP_SIG_LAST] = {0};
 typedef struct {
 	GtkWidget* webview;
 	WebKitWebContext* webkit_ctx;
+	gboolean webkit_dirty;
+	GtkWidget* sourceview;
+	GtkTextBuffer* sourcetext;
 	int ipc;
 	GtkWidget* headerview;
 	GtkTextBuffer* headertext;
 	GtkWidget* toolbar;
 	GtkWidget* progress_bar;
 	gboolean load_remote;
-	gint dirty_signal;
+	gboolean view_source;
 } WemedPanelPrivate;
 
 // called when WebKit loads part of the HTML content. Used to dynamically
@@ -79,16 +83,25 @@ GString wemed_panel_get_headers(WemedPanel* wp) {
 GString wemed_panel_get_content(WemedPanel* wp) {
 	GET_D(wp);
 	GString result = {0};
-	// trigger a dump of the DOM content in the web extension
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.dispatchEvent(new CustomEvent('wemed_content'));", NULL, NULL, NULL);
 
-	// block on the IPC socket to receive the data string
-	int len;
-	read(d->ipc, &len, sizeof(len));
-	result.str = (char*) malloc(len+1);
-	read(d->ipc, result.str, len);
-	result.str[len] = '\0';
-	result.len = len;
+	if(gtk_widget_is_visible(d->sourceview)) {
+		GtkTextIter start, end;
+		gtk_text_buffer_get_start_iter(d->sourcetext, &start);
+		gtk_text_buffer_get_end_iter(d->sourcetext, &end);
+		result.str = gtk_text_buffer_get_text(d->sourcetext, &start, &end, TRUE);
+		result.len = gtk_text_iter_get_offset(&end);
+	} else {
+		// trigger a dump of the DOM content in the web extension
+		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.dispatchEvent(new CustomEvent('wemed_content'));", NULL, NULL, NULL);
+
+		// block on the IPC socket to receive the data string
+		int len;
+		read(d->ipc, &len, sizeof(len));
+		result.str = (char*) malloc(len+1);
+		read(d->ipc, result.str, len);
+		result.str[len] = '\0';
+		result.len = len;
+	}
 
 	return result;
 }
@@ -204,7 +217,7 @@ static gboolean filter_variant_fonts(const PangoFontFamily* family, const PangoF
 
 static void dirtied_cb(GObject* emitter, WemedPanel* wp) {
 	GET_D(wp);
-	if(emitter == G_OBJECT(d->webview) || 
+	if((emitter == G_OBJECT(d->sourcetext) && gtk_text_buffer_get_modified(d->sourcetext)) ||
 			(emitter == G_OBJECT(d->headertext) && gtk_text_buffer_get_modified(d->headertext)))
 		g_signal_emit(wp, wemed_panel_signals[WP_SIG_DIRTIED], 0);
 }
@@ -220,7 +233,10 @@ static gboolean webkit_process_message(GIOChannel* source, GIOCondition conditio
 
 	if(opcode == 0) {
 		// child process notified webview was dirtied
-		dirtied_cb(G_OBJECT(d->webview), wp);
+		if(!d->webkit_dirty) {
+			d->webkit_dirty = TRUE;
+			g_signal_emit(wp, wemed_panel_signals[WP_SIG_DIRTIED], 0);
+		}
 	} else {
 		g_printerr("IPC sent %d\n", opcode);
 		return FALSE;
@@ -299,6 +315,8 @@ static void wemed_panel_init(WemedPanel* wp) {
 	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
 	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('styleWithCSS',false,true)", NULL, NULL, NULL);
 
+	d->sourceview = gtk_source_view_new();
+	d->sourcetext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(d->sourceview));
 	// connect everything
 	g_signal_connect(G_OBJECT(d->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), wp);
 	g_signal_connect(G_OBJECT(d->webview), "show", G_CALLBACK(hide_progress_bar), d->progress_bar);
@@ -354,6 +372,7 @@ static void wemed_panel_init(WemedPanel* wp) {
 	GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_box_pack_start(GTK_BOX(box), toolbar, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(box), d->webview, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(box), d->sourceview, TRUE, TRUE, 0);
 	gtk_box_pack_end(GTK_BOX(box), d->progress_bar, FALSE, FALSE, 3);
 	
 	gtk_paned_pack2(GTK_PANED(paned), box, TRUE, TRUE);
@@ -403,37 +422,57 @@ GtkWidget* wemed_panel_new() {
 
 void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 	GET_D(wp);
-	if(d->dirty_signal)
-		g_signal_handler_disconnect(G_OBJECT(d->headertext), d->dirty_signal);
 	wemed_panel_clear(wp);
 
 	gtk_text_buffer_set_text(d->headertext, doc.headers.str, doc.headers.len);
 	gtk_text_buffer_set_modified(d->headertext, FALSE);
+
 	gtk_widget_set_sensitive(d->headerview, TRUE);
 
-	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
-
-	if(doc.content.str && webkit_web_view_can_show_mime_type(WEBKIT_WEB_VIEW(d->webview), doc.content_type)) {
+	if(doc.content.str && doc.content_type) {
 		GBytes* bytes = g_bytes_new(doc.content.str, doc.content.len);
-		webkit_web_view_load_bytes(WEBKIT_WEB_VIEW(d->webview), bytes, doc.content_type, doc.charset, NULL);
-
 		if(strncmp(doc.content_type, "text/", 5) == 0) {
-			webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
-
-			if(strncmp(&doc.content_type[5], "html", 4) == 0) {
+			if(strncmp(&doc.content_type[5], "html", 4) == 0 && !d->view_source) {
+				// use webkit widget
+				webkit_web_view_load_bytes(WEBKIT_WEB_VIEW(d->webview), bytes, doc.content_type, doc.charset, NULL);
+				webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
 				gtk_widget_show(d->toolbar);
 				// start the progress bar, it should be hidden on completion of load
 				gtk_widget_show(d->progress_bar);
 			} else {
-				gtk_widget_hide(d->toolbar);
+				// use sourceview widget
+				GString src = doc.content;
+				if(doc.charset && strcmp(doc.charset, "utf8") != 0) {
+					// GtkTextBuffer must be fed utf-8
+					printf("converting from %s\n", doc.charset);
+					gsize sz;
+					char* converted = g_convert(src.str, src.len, "utf8", doc.charset, NULL, &sz, NULL);
+					if(converted) {
+						free(src.str);
+						src.str = converted;
+						src.len = sz;
+					} else printf("Conversion failed\n");
+				}
+				gtk_text_buffer_set_text(d->sourcetext, src.str, src.len);
+				gtk_source_buffer_set_language(GTK_SOURCE_BUFFER(d->sourcetext), gtk_source_language_manager_guess_language(gtk_source_language_manager_get_default(), NULL, doc.content_type));
+				gtk_text_buffer_set_modified(d->sourcetext, FALSE);
+				gtk_widget_show(d->sourceview);
 			}
+		} else if(webkit_web_view_can_show_mime_type(WEBKIT_WEB_VIEW(d->webview), doc.content_type)) {
+			// load image or other webkit-displayable read-only type
+			webkit_web_view_load_bytes(WEBKIT_WEB_VIEW(d->webview), bytes, doc.content_type, doc.charset, NULL);
 		}
 	}
-	d->dirty_signal = g_signal_connect(G_OBJECT(d->headertext), "modified-changed", G_CALLBACK(dirtied_cb), wp);
+
+	// set up callbacks to notify when the content is dirtied
+	// for the webview, this is handled by an IPC message
+	g_signal_connect(G_OBJECT(d->headertext), "modified-changed", G_CALLBACK(dirtied_cb), wp);
+	g_signal_connect(G_OBJECT(d->sourcetext), "modified-changed", G_CALLBACK(dirtied_cb), wp);
 }
 
 void wemed_panel_show_source(WemedPanel* wp, gboolean en) {
-	// TODO reimplement maybe with GtkSourceView since Webkit2 no longer supports this
+	GET_D(wp);
+	d->view_source = en;
 }
 
 void wemed_panel_load_remote_resources(WemedPanel* wp, gboolean en) {
@@ -457,12 +496,24 @@ void wemed_panel_clear(WemedPanel* wp) {
 	GET_D(wp);
 	// hide the web view
 	webkit_web_view_stop_loading(WEBKIT_WEB_VIEW(d->webview));
+	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), FALSE);
 	gtk_widget_hide(d->webview);
 	gtk_widget_hide(d->toolbar);
+	gtk_widget_hide(d->progress_bar);
+	// hide source view
+	gtk_widget_hide(d->sourceview);
+	// disconnect modify handlers so a dirty signal won't be triggered
+	g_signal_handlers_disconnect_by_func(d->headertext, G_CALLBACK(dirtied_cb), wp);
+	g_signal_handlers_disconnect_by_func(d->sourcetext, G_CALLBACK(dirtied_cb), wp);
 	// clear the header text
-	GtkTextIter start, end;
-	gtk_text_buffer_get_start_iter(d->headertext, &start);
-	gtk_text_buffer_get_end_iter(d->headertext, &end);
-	gtk_text_buffer_delete(d->headertext, &start, &end);
+	gtk_text_buffer_set_text(d->headertext, "", 0);
 	gtk_widget_set_sensitive(d->headerview, FALSE);
+}
+
+void wemed_panel_set_clean(WemedPanel *wp) {
+	GET_D(wp);
+	d->webkit_dirty = FALSE;
+	// this will trigger modified-changed callbacks but they should do nothing
+	gtk_text_buffer_set_modified(d->sourcetext, FALSE);
+	gtk_text_buffer_set_modified(d->headertext, FALSE);
 }
