@@ -47,6 +47,9 @@ typedef struct {
 	GtkWidget* progress_bar;
 	gboolean load_remote;
 	gboolean view_source;
+	GtkWidget* open_ext_box;
+	GtkWidget* open_ext_btn;
+	GtkWidget* open_with_ext_btn;
 } WemedPanelPrivate;
 
 // called when WebKit loads part of the HTML content. Used to dynamically
@@ -259,7 +262,15 @@ static void initialize_web_extensions (WebKitWebContext *context, gpointer user_
 	webkit_web_context_set_web_extensions_initialization_user_data(context, g_variant_new_string((gchar*) user_data));
 }
 
-void load_cid_cb(WebKitURISchemeRequest *request, gpointer user_data) {
+static void openext_cb(GtkButton* btn, WemedPanel* wp) {
+	g_signal_emit(wp, wemed_panel_signals[WP_SIG_OPEN_EXTERNAL], 0, FALSE);
+}
+
+static void openwith_cb(GtkButton* btn, WemedPanel* wp) {
+	g_signal_emit(wp, wemed_panel_signals[WP_SIG_OPEN_EXTERNAL], 0, TRUE);
+}
+
+static void load_cid_cb(WebKitURISchemeRequest *request, gpointer user_data) {
 	WemedPanel* wp = (WemedPanel*) user_data;
 	const char* path = webkit_uri_scheme_request_get_path(request);
 	GByteArray* s = NULL;
@@ -310,6 +321,10 @@ static void wemed_panel_init(WemedPanel* wp) {
 	g_signal_connect(d->webkit_ctx, "initialize-web-extensions", G_CALLBACK (initialize_web_extensions), saddr.sun_path+1);
 	d->webview = webkit_web_view_new_with_context(d->webkit_ctx);
 	d->progress_bar = gtk_progress_bar_new();
+	d->open_ext_btn = gtk_button_new();
+	g_signal_connect(d->open_ext_btn, "pressed", G_CALLBACK(openext_cb), wp);
+	d->open_with_ext_btn = gtk_button_new_with_mnemonic(_("Edit _With..."));
+	g_signal_connect(d->open_with_ext_btn, "pressed", G_CALLBACK(openwith_cb), wp);
 
 	webkit_web_context_register_uri_scheme(d->webkit_ctx, "cid", load_cid_cb, wp, NULL);
 	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
@@ -373,6 +388,14 @@ static void wemed_panel_init(WemedPanel* wp) {
 	gtk_box_pack_start(GTK_BOX(box), toolbar, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(box), d->webview, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(box), d->sourceview, TRUE, TRUE, 0);
+
+	d->open_ext_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	GtkWidget* owbb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+	gtk_box_pack_start(GTK_BOX(owbb), d->open_ext_btn, TRUE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(owbb), d->open_with_ext_btn, TRUE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(d->open_ext_box), owbb, TRUE, FALSE, 0);
+
+	gtk_box_pack_start(GTK_BOX(box), d->open_ext_box, TRUE, FALSE, 0);
 	gtk_box_pack_end(GTK_BOX(box), d->progress_bar, FALSE, FALSE, 3);
 	
 	gtk_paned_pack2(GTK_PANED(paned), box, TRUE, TRUE);
@@ -414,6 +437,17 @@ static void wemed_panel_class_init(WemedPanelClass* class) {
 			NULL,
 			G_TYPE_NONE,
 			0);
+	wemed_panel_signals[WP_SIG_OPEN_EXTERNAL] = g_signal_new(
+	        "open-external",
+	        G_TYPE_FROM_CLASS ((GObjectClass*)class),
+	        G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+	        0,
+	        NULL,
+	        NULL,
+	        NULL,
+	        G_TYPE_NONE,
+	        1,
+	        G_TYPE_BOOLEAN);
 }
 
 GtkWidget* wemed_panel_new() {
@@ -461,6 +495,13 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 		} else if(webkit_web_view_can_show_mime_type(WEBKIT_WEB_VIEW(d->webview), doc.content_type)) {
 			// load image or other webkit-displayable read-only type
 			webkit_web_view_load_bytes(WEBKIT_WEB_VIEW(d->webview), bytes, doc.content_type, doc.charset, NULL);
+		} else {
+			// unhandled type - offer to open with external app
+			char* label = NULL;
+			asprintf(&label, _("Edit with %s"), doc.mimeapp_name);
+			gtk_button_set_label(GTK_BUTTON(d->open_ext_btn), label);
+			free(label);
+			gtk_widget_show(d->open_ext_box);
 		}
 	}
 
@@ -502,6 +543,8 @@ void wemed_panel_clear(WemedPanel* wp) {
 	gtk_widget_hide(d->progress_bar);
 	// hide source view
 	gtk_widget_hide(d->sourceview);
+	// hide open with
+	gtk_widget_hide(d->open_ext_box);
 	// disconnect modify handlers so a dirty signal won't be triggered
 	g_signal_handlers_disconnect_by_func(d->headertext, G_CALLBACK(dirtied_cb), wp);
 	g_signal_handlers_disconnect_by_func(d->sourcetext, G_CALLBACK(dirtied_cb), wp);

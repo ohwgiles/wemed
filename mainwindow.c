@@ -142,7 +142,7 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 		}
 	}
 
-	WemedPanelDoc doc = { mime_type, charset, headers, content };
+	WemedPanelDoc doc = { mime_type, charset, headers, content, w->mime_app.name };
 	wemed_panel_load_doc(WEMED_PANEL(w->panel), doc);
 	g_free(content.str);
 	g_free(headers.str);
@@ -518,6 +518,14 @@ static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
 	}
 }
 
+static void panel_edit_external(WemedPanel* panel, gboolean open_with, WemedWindow* w) {
+	if(open_with) {
+		menu_part_edit_with(NULL, w);
+	} else {
+		menu_part_edit(NULL, w);
+	}
+}
+
 static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new(
 			_("Save File"),
@@ -806,6 +814,7 @@ WemedWindow* wemed_window_create() {
 	w->panel = wemed_panel_new();
 	g_signal_connect(w->panel, "import-file", G_CALLBACK(import_file_cb), w);
 	g_signal_connect(w->panel, "dirtied", G_CALLBACK(set_dirtied), w);
+	g_signal_connect(w->panel, "open-external", G_CALLBACK(panel_edit_external), w);
 	gtk_paned_add2(GTK_PANED(w->paned), w->panel);
 
 	g_signal_connect(G_OBJECT(w->mime_tree), "selection-changed", G_CALLBACK(tree_selection_changed), w);

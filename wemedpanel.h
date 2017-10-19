@@ -25,6 +25,7 @@ typedef struct {
 	const char* charset;
 	GString headers;
 	GString content;
+	const char* mimeapp_name;
 } WemedPanelDoc;
 
 GType wemed_panel_get_type();
