@@ -318,6 +318,7 @@ static void wemed_panel_init(WemedPanel* wp) {
 
 	// create and configure all our widgets
 	d->headerview = gtk_text_view_new();
+	gtk_text_view_set_monospace(GTK_TEXT_VIEW(d->headerview), TRUE);
 	d->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(d->headerview));
 	d->webkit_ctx = webkit_web_context_new();
 	webkit_web_context_set_cache_model(d->webkit_ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
@@ -334,6 +335,8 @@ static void wemed_panel_init(WemedPanel* wp) {
 	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('styleWithCSS',false,true)", NULL, NULL, NULL);
 
 	d->sourceview = gtk_source_view_new();
+	gtk_source_view_set_show_line_numbers(GTK_SOURCE_VIEW(d->sourceview), TRUE);
+	gtk_text_view_set_monospace(GTK_TEXT_VIEW(d->sourceview), TRUE);
 	d->sourcetext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(d->sourceview));
 	// connect everything
 	g_signal_connect(G_OBJECT(d->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), wp);
