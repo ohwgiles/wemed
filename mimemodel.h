@@ -4,9 +4,11 @@
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
+#include <gmime/gmime.h>
+#include <gtk/gtktreemodel.h>
 
-struct MimeModel_S;
-typedef struct MimeModel_S MimeModel;
+struct _MimeModel;
+typedef struct _MimeModel MimeModel;
 
 // columns in the table representing a MIME part
 enum {
@@ -26,7 +28,7 @@ const char *mime_model_content_type(GMimeObject* obj);
 
 GMimeObject* mime_model_root(MimeModel*);
 
-GString mime_model_part_content(GMimeObject* part, gboolean in_data_uri);
+GString mime_model_part_content(GMimeObject* part);
 GString mime_model_part_headers(GMimeObject* part);
 
 GMimeObject* mime_model_update_header(MimeModel*, GMimeObject* obj, GString new_header);

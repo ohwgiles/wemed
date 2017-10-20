@@ -23,7 +23,7 @@ static gboolean content_cb(GObject* doc, WebKitDOMEvent* event, WemedExt* ext) {
 	// process triggers this event and will be waiting synchronously for
 	// this response
 	gchar* content = webkit_dom_element_get_outer_html(webkit_dom_document_get_document_element(WEBKIT_DOM_DOCUMENT(doc)));
-	int len = strlen(content);
+	unsigned long len = strlen(content);
 	write(ext->ipc_fd, &len, sizeof(int));
 	write(ext->ipc_fd, content, len);
 	g_free(content);

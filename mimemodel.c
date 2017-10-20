@@ -1,5 +1,5 @@
 /* Copyright 2013-2017 Oliver Giles
- * This file is part of Wemed. Wemed is licensed under the 
+ * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
 #include <stdio.h>
@@ -12,9 +12,7 @@
 #include "mimemodel.h"
 #include "mimeapp.h"
 
-extern GtkIconTheme* system_icon_theme;
-
-struct MimeModel_S {
+struct _MimeModel {
 	GtkTreeStore* store;
 	GtkTreeModel* filter;
 	GMimeObject* message;
@@ -35,7 +33,7 @@ static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part
 	}
 
 	GIcon* gicon = g_content_type_get_icon(icon_name);
-	GtkIconInfo *icon_info = gtk_icon_theme_lookup_by_gicon(system_icon_theme, gicon, 16, 0);
+	GtkIconInfo *icon_info = gtk_icon_theme_lookup_by_gicon(gtk_icon_theme_get_default(), gicon, 16, 0);
 	g_object_unref(gicon);
 	if(icon_info) {
 		icon = gtk_icon_info_load_icon(icon_info, NULL);
@@ -53,14 +51,13 @@ static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part
 		g_object_unref(icon);
 }
 
-
-
 // At present it seems the only way to get a GtkTreeIter from
 // a GMimeObject* is a brute-force match...
 struct PartFinder {
 	GtkTreeIter iter;
 	GMimeObject* obj;
 };
+
 static gboolean find_part(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, void* user_data) {
 	struct PartFinder* p = (struct PartFinder*) user_data;
 	GMimeObject* obj = NULL;
@@ -91,8 +88,6 @@ static GtkTreeIter parent_node(MimeModel* m, GtkTreeIter child) {
 	return parent;
 }
 
-
-
 static gboolean is_content_disposition_inline(GtkTreeModel* gtm, GtkTreeIter* iter, gpointer user_data) {
 	MimeModel* m = (MimeModel*) user_data;
 	if(!m->filter_enabled) return TRUE;
@@ -110,6 +105,7 @@ struct TreeInsertHelper {
 	GtkTreeIter parent;
 	GtkTreeIter child;
 };
+
 static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data) {
 	struct TreeInsertHelper* h = (struct TreeInsertHelper*) user_data;
 	// halt the auto-recursion
@@ -130,11 +126,9 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 		gtk_tree_store_append(h->m->store, &h->child, &h->parent);
 		add_part_to_store(h->m, &h->child, part);
 	} else {
-		printf("unknown type!\n");
+		fprintf(stderr, "unknown mime object in tree\n");
 	}
 }
-
-
 
 void mime_model_create_blank_email(MimeModel* m) {
 	g_mime_object_append_header(m->message, "To", "");
@@ -149,7 +143,6 @@ void mime_model_create_blank_email(MimeModel* m) {
 	mime_model_new_node(m, related, "text/html");
 	mime_model_new_node(m, alternative, "text/plain");
 }
-
 
 void mime_model_update_content(MimeModel* m, GMimePart* part, GString content) {
 	// encode content into memstream
@@ -223,7 +216,7 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, GStri
 			g_object_unref(filter);
 			g_object_unref(wrapper);
 		} else
-		g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
+			g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
 	} else if(GMIME_IS_MULTIPART(part_new)) {
 		// move all the mime parts from the old multipart to the new multipart
 		for(int i = 0, n = g_mime_multipart_get_count(GMIME_MULTIPART(part_old)); i < n; ++i) {
@@ -242,14 +235,13 @@ GMimeObject* mime_model_find_mixed_parent(MimeModel* m, GMimeObject* part) {
 	GMimeObject* parent = obj_from_iter(m, parent_iter);
 	GMimeContentType* ct = g_mime_object_get_content_type(parent);
 	if(g_mime_content_type_is_type(ct,"multipart","related") || g_mime_content_type_is_type(ct,"multipart","mixed"))
-			return parent;
+		return parent;
 	return mime_model_find_mixed_parent(m, parent);
 }
 
 GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, const char* content_type_string) {
 	GMimeMultipart* parent_part = NULL;
 	GtkTreeIter parent_iter;
-
 
 	GMimeContentType* content_type = g_mime_content_type_new_from_string(content_type_string);
 	GMimeObject* new_node = g_mime_object_new(content_type);
@@ -347,7 +339,8 @@ void mime_model_write_part(GMimePart* part, FILE* fp) {
 
 gboolean mime_model_write_to_file(MimeModel* m, FILE* fp) {
 	GMimeStream* gfs = g_mime_stream_file_new(fp);
-	if(!gfs) return FALSE;
+	if(!gfs)
+		return FALSE;
 
 	g_mime_object_write_to_stream(GMIME_OBJECT(m->message), gfs);
 	g_object_unref(gfs);
@@ -376,7 +369,7 @@ GByteArray* mime_model_object_from_cid(GObject* emitter, const char* cid, gpoint
 	MimeModel* m = user_data;
 	GMimeObject* part = g_mime_multipart_get_subpart_from_content_id(GMIME_MULTIPART(m->message), cid);
 	// TODO: directly from bytearray
-	GString str = mime_model_part_content(part, TRUE);
+	GString str = mime_model_part_content(part);
 	return g_byte_array_new_take((guint8*)str.str, str.len);
 }
 
@@ -411,7 +404,7 @@ GString mime_model_part_headers(GMimeObject* obj) {
 	return ret;
 }
 
-GString mime_model_part_content(GMimeObject* obj, gboolean in_data_uri) {
+GString mime_model_part_content(GMimeObject* obj) {
 	GString ret = {0, 0, 0};
 	if(!GMIME_IS_PART(obj))
 		return ret;
@@ -433,11 +426,12 @@ GString mime_model_part_content(GMimeObject* obj, gboolean in_data_uri) {
 	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), encoding_filter);
 	// get the length of the decoded data
 	gint64 decoded_length = stream_test_len(stream_filter);
-	// by allocating our own array we control its length
-	ret.str = malloc(decoded_length+1); // null termination
-	ret.allocated_len = decoded_length+1;
-	ret.len = decoded_length;
-	write_stream_to_mem(stream_filter, ret.str, decoded_length);
+	if(decoded_length > 0) {
+		ret.str = (char*) malloc((size_t) decoded_length + 1); // null termination
+		ret.allocated_len = decoded_length+1;
+		ret.len = decoded_length;
+		write_stream_to_mem(stream_filter, ret.str, decoded_length);
+	}
 	g_object_unref(decoding_filter);
 	g_object_unref(encoding_filter);
 	g_object_unref(stream_filter);

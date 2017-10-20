@@ -1,5 +1,5 @@
 /* Copyright 2013 Oliver Giles
- * This file is part of Wemed. Wemed is licensed under the 
+ * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
 #include <gtk/gtk.h>
@@ -8,7 +8,7 @@
 #include "mimemodel.h"
 #include "mimetree.h"
 
-G_DEFINE_TYPE(MimeTree, mime_tree, GTK_TYPE_TREE_VIEW);
+G_DEFINE_TYPE(MimeTree, mime_tree, GTK_TYPE_TREE_VIEW)
 
 // signals
 enum {
@@ -16,20 +16,20 @@ enum {
 	MT_SIG_LAST
 };
 
-static gint mime_tree_signals[MT_SIG_LAST] = {0};
+static guint mime_tree_signals[MT_SIG_LAST] = {0};
 
 static void mime_tree_class_init(MimeTreeClass* class) {
 	mime_tree_signals[MT_SELECTION_CHANGED] = g_signal_new(
-			"selection-changed",
-			G_TYPE_FROM_CLASS ((GObjectClass*)class),
-			G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-			0, // v-table offset
-			NULL,
-			NULL,
-			NULL, //marshaller
-			G_TYPE_NONE, // return tye
-			1, // num args
-			G_TYPE_POINTER); // arg types
+	      "selection-changed",
+	      G_TYPE_FROM_CLASS ((GObjectClass*)class),
+	      G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
+	      0, // v-table offset
+	      NULL,
+	      NULL,
+	      NULL, //marshaller
+	      G_TYPE_NONE, // return tye
+	      1, // num args
+	      G_TYPE_POINTER); // arg types
 }
 
 GtkWidget* mime_tree_new() {

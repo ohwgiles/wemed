@@ -1,5 +1,5 @@
 /* Copyright 2013 Oliver Giles
- * This file is part of Wemed. Wemed is licensed under the 
+ * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
 #include <stdlib.h>
@@ -8,19 +8,19 @@
 #include "openwith.h"
 #include "exec.h"
 
-char* strchrnul(const char*, int);
-
 static void populate_options(const char* content_type, GtkIconTheme* icontheme, GtkListStore* store) {
 	// first get all the possible apps from the MIME cache
 	char buffer[20001] = {0};
-	int n;
+	ssize_t n;
 
 	char* grepsearch = malloc(1 + strlen(content_type) + 2);
 	sprintf(grepsearch, "^%s=", content_type);
 	const char* args[] = { "grep", grepsearch, "/usr/share/applications/mimeinfo.cache", 0 };
 
 	n = exec_get(buffer, 20000, "grep", args);
-	if(n < 0) return free(grepsearch);
+	if(n < 0)
+		return free(grepsearch);
+
 	*strchrnul(buffer, '\n') = '\0';
 	free(grepsearch);
 
@@ -95,9 +95,6 @@ static GtkWidget* create_list_widget() {
 	return view;
 }
 
-
-
-
 char* open_with(GtkWidget* parent, const char* content_type) {
 	GtkIconTheme* git = gtk_icon_theme_get_default();
 
@@ -141,5 +138,3 @@ char* open_with(GtkWidget* parent, const char* content_type) {
 
 	return ret;
 }
-
-

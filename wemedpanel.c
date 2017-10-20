@@ -26,20 +26,21 @@ G_DEFINE_TYPE(WemedPanel, wemed_panel, GTK_TYPE_PANED)
 // signals
 enum {
 	WP_SIG_GET_CID,
-	WP_SIG_IMPORT,
-	WP_SIG_DIRTIED,
-	WP_SIG_LAST
+	        WP_SIG_IMPORT,
+	        WP_SIG_DIRTIED,
+	        WP_SIG_OPEN_EXTERNAL,
+	        WP_SIG_LAST
 };
 
-static gint wemed_panel_signals[WP_SIG_LAST] = {0};
+static guint wemed_panel_signals[WP_SIG_LAST] = {0};
 
 // the private elements
 typedef struct {
 	GtkWidget* webview;
 	WebKitWebContext* webkit_ctx;
-	gboolean webkit_dirty;
 	GtkWidget* sourceview;
 	GtkTextBuffer* sourcetext;
+	gboolean webkit_dirty;
 	int ipc;
 	GtkWidget* headerview;
 	GtkTextBuffer* headertext;
@@ -59,7 +60,7 @@ static void progress_changed_cb(GObject* web_view, GdkEvent* e, WemedPanel* wp) 
 	gdouble p;
 	g_object_get(web_view, "estimated-load-progress", &p, NULL);
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(d->progress_bar), p);
-	if(p == 1) { // loading is complete
+	if(p == 1.0) { // loading is complete
 		gtk_widget_show(d->webview); // this will also hide the progress bar
 	}
 }
@@ -175,11 +176,11 @@ static void update_preview_cb(GtkFileChooser *file_chooser, gpointer data) {
 static void edit_image_cb(GtkToolItem* item, WemedPanel* wp) {
 	GET_D(wp);
 	GtkWidget *dialog = gtk_file_chooser_dialog_new(_("Select images"),
-			NULL,
-			GTK_FILE_CHOOSER_ACTION_OPEN,
-			_("Cancel"), GTK_RESPONSE_CANCEL,
-			_("Open"), GTK_RESPONSE_ACCEPT,
-			NULL);
+	                                                NULL,
+	                                                GTK_FILE_CHOOSER_ACTION_OPEN,
+	                                                _("Cancel"), GTK_RESPONSE_CANCEL,
+	                                                _("Open"), GTK_RESPONSE_ACCEPT,
+	                                                NULL);
 	gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(dialog), TRUE);
 	GtkWidget *preview = gtk_image_new ();
 	gtk_file_chooser_set_preview_widget(GTK_FILE_CHOOSER(dialog), preview);
@@ -193,11 +194,13 @@ static void edit_image_cb(GtkToolItem* item, WemedPanel* wp) {
 			char* path = g_file_get_path(f);
 			char* cid = 0;
 			g_signal_emit(wp, wemed_panel_signals[WP_SIG_IMPORT], 0, path, &cid);
-			char* exec = 0;
-			asprintf(&exec, "document.execCommand('insertimage', false, 'cid:%s')", cid);
-			webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), exec, NULL, NULL, NULL);
-			free(cid);
-			free(exec);
+			if(cid) {
+				char* exec = 0;
+				asprintf(&exec, "document.execCommand('insertimage', false, 'cid:%s')", cid);
+				webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), exec, NULL, NULL, NULL);
+				free(cid);
+				free(exec);
+			}
 			g_free(path);
 			g_object_unref(f);
 			p = p->next;
@@ -221,7 +224,7 @@ static gboolean filter_variant_fonts(const PangoFontFamily* family, const PangoF
 static void dirtied_cb(GObject* emitter, WemedPanel* wp) {
 	GET_D(wp);
 	if((emitter == G_OBJECT(d->sourcetext) && gtk_text_buffer_get_modified(d->sourcetext)) ||
-			(emitter == G_OBJECT(d->headertext) && gtk_text_buffer_get_modified(d->headertext)))
+	        (emitter == G_OBJECT(d->headertext) && gtk_text_buffer_get_modified(d->headertext)))
 		g_signal_emit(wp, wemed_panel_signals[WP_SIG_DIRTIED], 0);
 }
 
@@ -257,8 +260,8 @@ static gboolean webkit_process_connected(GIOChannel *source, GIOCondition condit
 	return FALSE;
 }
 
-static void initialize_web_extensions (WebKitWebContext *context, gpointer user_data) {
-	webkit_web_context_set_web_extensions_directory (context, WEMED_WEBEXT_DIR);
+static void initialize_web_extensions(WebKitWebContext *context, gpointer user_data) {
+	webkit_web_context_set_web_extensions_directory(context, WEMED_WEBEXT_DIR);
 	webkit_web_context_set_web_extensions_initialization_user_data(context, g_variant_new_string((gchar*) user_data));
 }
 
@@ -318,7 +321,7 @@ static void wemed_panel_init(WemedPanel* wp) {
 	d->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(d->headerview));
 	d->webkit_ctx = webkit_web_context_new();
 	webkit_web_context_set_cache_model(d->webkit_ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
-	g_signal_connect(d->webkit_ctx, "initialize-web-extensions", G_CALLBACK (initialize_web_extensions), saddr.sun_path+1);
+	g_signal_connect(d->webkit_ctx, "initialize-web-extensions", G_CALLBACK(initialize_web_extensions), saddr.sun_path+1);
 	d->webview = webkit_web_view_new_with_context(d->webkit_ctx);
 	d->progress_bar = gtk_progress_bar_new();
 	d->open_ext_btn = gtk_button_new();
@@ -406,48 +409,48 @@ static void wemed_panel_init(WemedPanel* wp) {
 static void wemed_panel_class_init(WemedPanelClass* class) {
 	g_type_class_add_private(class, sizeof(WemedPanelPrivate));
 	wemed_panel_signals[WP_SIG_GET_CID] = g_signal_new(
-	            "cid-requested",
-	            G_TYPE_FROM_CLASS ((GObjectClass*)class),
-	            G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
-	            0, // v-table offset
-	            NULL,
-	            NULL,
-	            NULL, //marshaller
-	            G_TYPE_BYTE_ARRAY, // return tye
-	            1, // num args
-	            G_TYPE_STRING); // arg types
+	    "cid-requested",
+	    G_TYPE_FROM_CLASS ((GObjectClass*)class),
+	    G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+	    0, // v-table offset
+	    NULL,
+	    NULL,
+	    NULL, //marshaller
+	    G_TYPE_BYTE_ARRAY, // return tye
+	    1, // num args
+	    G_TYPE_STRING); // arg types
 	wemed_panel_signals[WP_SIG_IMPORT] = g_signal_new(
-			"import-file",
-			G_TYPE_FROM_CLASS ((GObjectClass*)class),
-			G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
-			0, // v-table offset
-			NULL,
-			NULL,
-			NULL, //marshaller
-			G_TYPE_STRING, // return tye
-			1, // num args
-			G_TYPE_STRING); // arg types
+	    "import-file",
+	    G_TYPE_FROM_CLASS ((GObjectClass*)class),
+	    G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+	    0, // v-table offset
+	    NULL,
+	    NULL,
+	    NULL, //marshaller
+	    G_TYPE_STRING, // return tye
+	    1, // num args
+	    G_TYPE_STRING); // arg types
 	wemed_panel_signals[WP_SIG_DIRTIED] = g_signal_new(
-			"dirtied",
-			G_TYPE_FROM_CLASS ((GObjectClass*)class),
-			G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
-			0,
-			NULL,
-			NULL,
-			NULL,
-			G_TYPE_NONE,
-			0);
+	    "dirtied",
+	    G_TYPE_FROM_CLASS ((GObjectClass*)class),
+	    G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    0);
 	wemed_panel_signals[WP_SIG_OPEN_EXTERNAL] = g_signal_new(
-	        "open-external",
-	        G_TYPE_FROM_CLASS ((GObjectClass*)class),
-	        G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
-	        0,
-	        NULL,
-	        NULL,
-	        NULL,
-	        G_TYPE_NONE,
-	        1,
-	        G_TYPE_BOOLEAN);
+	    "open-external",
+	    G_TYPE_FROM_CLASS ((GObjectClass*)class),
+	    G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    1,
+	    G_TYPE_BOOLEAN);
 }
 
 GtkWidget* wemed_panel_new() {
@@ -478,14 +481,13 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 				GString src = doc.content;
 				if(doc.charset && strcmp(doc.charset, "utf8") != 0) {
 					// GtkTextBuffer must be fed utf-8
-					printf("converting from %s\n", doc.charset);
 					gsize sz;
 					char* converted = g_convert(src.str, src.len, "utf8", doc.charset, NULL, &sz, NULL);
 					if(converted) {
 						free(src.str);
 						src.str = converted;
 						src.len = sz;
-					} else printf("Conversion failed\n");
+					} else fprintf(stderr, "Conversion from %s to utf8 failed\n", doc.charset);
 				}
 				gtk_text_buffer_set_text(d->sourcetext, src.str, src.len);
 				gtk_source_buffer_set_language(GTK_SOURCE_BUFFER(d->sourcetext), gtk_source_language_manager_guess_language(gtk_source_language_manager_get_default(), NULL, doc.content_type));

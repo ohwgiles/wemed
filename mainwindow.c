@@ -1,22 +1,19 @@
 /* Copyright 2013-2017 Oliver Giles
- * This file is part of Wemed. Wemed is licensed under the 
+ * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
 #include <gtk/gtk.h>
-
-#include <libintl.h>
-#define _(str) gettext(str)
 #include <string.h>
 #include <stdlib.h>
 #include <gmime/gmime.h>
+#include <libintl.h>
+#define _(str) gettext(str)
 #include "mimeapp.h"
 #include "wemedpanel.h"
 #include "mimemodel.h"
 #include "mimetree.h"
 #include "mainwindow.h"
 #include "openwith.h"
-
-extern GtkIconTheme* system_icon_theme;
 
 // these menu widgets are dynamically modified throughout
 // the program lifecycle, so references are saved here. Other
@@ -34,7 +31,7 @@ typedef struct {
 	GtkWidget* menu_part_delete;
 } MenuWidgets;
 
-struct WemedWindow_S {
+struct _WemedWindow {
 	// widgets/view
 	GtkWidget* root_window;
 	GtkWidget* paned;
@@ -65,9 +62,16 @@ static void expand_mime_tree_view(WemedWindow* w) {
 }
 
 static GString slurp_and_close(FILE* fp) {
-	GString ret = {0};
-	fseek(fp, 0, SEEK_END);
-	ret.len = ftell(fp);
+	GString ret = {0, 0, 0};
+	if(fseek(fp, 0, SEEK_END) < 0)
+		return ret;
+
+	long n = ftell(fp);
+	if(n < 0) {
+		perror("ftell");
+		return ret;
+	}
+	ret.len = (gsize) n;
 	rewind(fp);
 	ret.str = malloc(ret.len);
 	fread(ret.str, 1, ret.len, fp);
@@ -98,7 +102,7 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	GString headers = mime_model_part_headers(part);
 	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
 	const char* mime_type = mime_model_content_type(w->current_part);
-	GString content = {0};
+	GString content = {0, 0, 0};
 
 	gtk_widget_set_sensitive(w->menu_widgets->menu_part_delete, (part != mime_model_root(w->model)));
 
@@ -124,16 +128,15 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 		}
 		
 		// fetch the part content
-		content = mime_model_part_content(part, FALSE);
+		content = mime_model_part_content(part);
 
 		// determine the external program for the given mime type and update the menu accordingly
 		free(w->mime_app.name); // clean up the last one
 		free(w->mime_app.exec);
 		w->mime_app = get_default_mime_app(mime_type);
 		if(w->mime_app.exec) {
-			const char* editwith = _("Edit with %s");
-			char* label = malloc(strlen(editwith) + strlen(w->mime_app.name));
-			sprintf(label, editwith, w->mime_app.name);
+			char* label = NULL;
+			asprintf(&label, _("Edit with %s"), w->mime_app.name);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(w->menu_widgets->menu_part_edit), label);
 			free(label);
 			gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, TRUE);
@@ -166,7 +169,7 @@ static void register_changes(WemedWindow* w) {
 	if(GMIME_IS_PART(w->current_part)) {
 		const char* ct = mime_model_content_type(w->current_part);
 		if(strncmp(ct, "text/", 5) == 0) {
-			// webkit returns content in utf-8, so we have to convert it back 
+			// webkit returns content in utf-8, so we have to convert it back
 			// if the desired encoding is different
 			GString new_content = wemed_panel_get_content(WEMED_PANEL(w->panel));
 			const char* charset = g_mime_object_get_content_type_parameter(w->current_part, "charset");
@@ -177,7 +180,8 @@ static void register_changes(WemedWindow* w) {
 					free(new_content.str);
 					new_content.str = converted;
 					new_content.len = sz;
-				} else printf("Conversion failed\n");
+				} else
+					fprintf(stderr, "Conversion failed\n");
 			}
 			mime_model_update_content(w->model, GMIME_PART(w->current_part), new_content);
 			free(new_content.str);
@@ -195,7 +199,7 @@ static void register_changes(WemedWindow* w) {
 		if(new_part) {
 			set_current_part(w, new_part);
 		} else {
-			printf("error: new_part is NULL\n");
+			fprintf(stderr, "new_part is NULL\n");
 		}
 	}
 	free(new_headers.str);
@@ -230,7 +234,9 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	mime_model_write_part(part, fp);
 	char* buffer = malloc(strlen(app) + strlen(tmpfile) + 5);
 	char* p = 0;
-	// this is not done very robustly.
+	// TODO: improve this hack
+	// The external application to execute is taken from FreeDesktop Exec key:
+	// https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#exec-variables
 	if((p = strstr(app, "%f")) || (p = strstr(app, "%U")) || (p = strstr(app, "%s"))) {
 		p[1] = 's';
 		sprintf(buffer, app, tmpfile);
@@ -241,14 +247,19 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	system(buffer);
 	free(buffer);
 	// now we've come back from the external program, read the data back in and save it
+	// TODO: only if it has changed
 	GString new_content = slurp_and_close(fopen(tmpfile, "rb"));
-	set_dirtied(NULL, w);
-	mime_model_update_content(w->model, part, new_content);
-	set_current_part(w, GMIME_OBJECT(part));
-	free(new_content.str);
-	
 	unlink(tmpfile); // be a tidy kiwi
 	free(tmpfile);
+
+	if(new_content.str) {
+		set_dirtied(NULL, w);
+		mime_model_update_content(w->model, part, new_content);
+		set_current_part(w, GMIME_OBJECT(part));
+		free(new_content.str);
+	} else {
+		fprintf(stderr, "failed to slurp %s\n", tmpfile);
+	}
 }
 
 static void set_clean(WemedWindow* w) {
@@ -306,11 +317,11 @@ static gboolean menu_file_save(GtkMenuItem* item, WemedWindow* w) {
 static gboolean confirm_close(WemedWindow* w) {
 	if(w->dirty) {
 		GtkWidget* dialog = gtk_message_dialog_new(
-				GTK_WINDOW(w->root_window),
-				GTK_DIALOG_DESTROY_WITH_PARENT,
-				GTK_MESSAGE_QUESTION,
-				GTK_BUTTONS_NONE,
-				_("File has been modified. Would you like to save it?"));
+		                        GTK_WINDOW(w->root_window),
+		                        GTK_DIALOG_DESTROY_WITH_PARENT,
+		                        GTK_MESSAGE_QUESTION,
+		                        GTK_BUTTONS_NONE,
+		                        _("File has been modified. Would you like to save it?"));
 		gtk_dialog_add_button(GTK_DIALOG(dialog), _("_Yes"), GTK_RESPONSE_YES);
 		gtk_dialog_add_button(GTK_DIALOG(dialog), _("_No"), GTK_RESPONSE_NO);
 		gtk_dialog_add_button(GTK_DIALOG(dialog), _("_Cancel"), GTK_RESPONSE_CANCEL);
@@ -331,7 +342,7 @@ static gboolean menu_file_close(GtkMenuItem* item, WemedWindow* w) {
 	if(confirm_close(w)) {
 		close_document(w);
 		return TRUE;
-	} else 
+	} else
 		return FALSE;
 }
 
@@ -352,11 +363,11 @@ static void menu_file_reload(GtkMenuItem* item, WemedWindow* w) {
 	// just close the current document and reopen it
 	char* f = strdup(w->filename); // save the filename for reopening
 	GtkWidget* dialog = gtk_message_dialog_new(
-			GTK_WINDOW(w->root_window),
-			GTK_DIALOG_DESTROY_WITH_PARENT,
-			GTK_MESSAGE_QUESTION,
-			GTK_BUTTONS_YES_NO,
-			_("Are you sure you want to reload the file from disk?"));
+	                        GTK_WINDOW(w->root_window),
+	                        GTK_DIALOG_DESTROY_WITH_PARENT,
+	                        GTK_MESSAGE_QUESTION,
+	                        GTK_BUTTONS_YES_NO,
+	                        _("Are you sure you want to reload the file from disk?"));
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_YES) {
 		close_document(w);
 		wemed_window_open(w, f);
@@ -366,14 +377,15 @@ static void menu_file_reload(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static void menu_file_open(GtkMenuItem* item, WemedWindow* w) {
-	if(confirm_close(w) == FALSE) return;
+	if(confirm_close(w) == FALSE)
+		return;
 
 	GtkWidget *dialog = gtk_file_chooser_dialog_new (_("Open File"),
-			GTK_WINDOW(w->root_window),
-			GTK_FILE_CHOOSER_ACTION_OPEN,
-			_("_Cancel"), GTK_RESPONSE_CANCEL,
-			_("_Open"), GTK_RESPONSE_ACCEPT,
-			NULL);
+	                         GTK_WINDOW(w->root_window),
+	                         GTK_FILE_CHOOSER_ACTION_OPEN,
+	                         _("_Cancel"), GTK_RESPONSE_CANCEL,
+	                         _("_Open"), GTK_RESPONSE_ACCEPT,
+	                         NULL);
 
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
@@ -385,7 +397,8 @@ static void menu_file_open(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static void menu_file_new(GtkMenuItem* item, WemedWindow* w) {
-	if(confirm_close(w) == FALSE) return;
+	if(confirm_close(w) == FALSE)
+		return;
 
 	close_document(w);
 	GString s = {0};
@@ -394,7 +407,8 @@ static void menu_file_new(GtkMenuItem* item, WemedWindow* w) {
 
 
 static void menu_file_new_email(GtkMenuItem* item, WemedWindow* w) {
-	if(confirm_close(w) == FALSE) return;
+	if(confirm_close(w) == FALSE)
+		return;
 
 	close_document(w);
 	GString s = {0};
@@ -435,14 +449,14 @@ static void menu_part_new_node(GtkMenuItem* item, WemedWindow* w) {
 	gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
 
 	GtkWidget* dialog = gtk_dialog_new_with_buttons(
-			_("Select Node Type"),
-			GTK_WINDOW(w->root_window),
-			GTK_DIALOG_MODAL,
-			_("_OK"),
-			GTK_RESPONSE_ACCEPT,
-			_("_Cancel"),
-			GTK_RESPONSE_REJECT,
-			NULL);
+	                        _("Select Node Type"),
+	                        GTK_WINDOW(w->root_window),
+	                        GTK_DIALOG_MODAL,
+	                        _("_OK"),
+	                        GTK_RESPONSE_ACCEPT,
+	                        _("_Cancel"),
+	                        GTK_RESPONSE_REJECT,
+	                        NULL);
 	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	gtk_container_add(GTK_CONTAINER(content), combo);
 	gtk_widget_show_all(dialog);
@@ -465,7 +479,10 @@ static char* import_file_into_tree(WemedWindow* w,  GMimeObject* parent_or_sibli
 	char* mime_type = get_file_mime_type(filename);
 	GMimePart* part = GMIME_PART(mime_model_new_node(w->model, parent_or_sibling, mime_type));
 	g_mime_part_set_content_encoding(part, GMIME_CONTENT_ENCODING_BASE64);
-	mime_model_update_content(w->model, part, slurp_and_close(fopen(filename, "rb")));
+	GString content = slurp_and_close(fopen(filename, "rb"));
+	if(!content.str)
+		return NULL;
+	mime_model_update_content(w->model, part, content);
 	char* cid;
 	asprintf(&cid, "part%d_%u", partnum++, (unsigned int)time(0));
 	g_mime_part_set_content_id(part, cid);
@@ -489,11 +506,11 @@ static char* import_file_cb(WemedPanel* p, const char* filename, WemedWindow* w)
 
 static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new (_("Open File"),
-			GTK_WINDOW(w->root_window),
-			GTK_FILE_CHOOSER_ACTION_OPEN,
-			_("_Cancel"), GTK_RESPONSE_CANCEL,
-			_("_Open"), GTK_RESPONSE_ACCEPT,
-			NULL);
+	                         GTK_WINDOW(w->root_window),
+	                         GTK_FILE_CHOOSER_ACTION_OPEN,
+	                         _("_Cancel"), GTK_RESPONSE_CANCEL,
+	                         _("_Open"), GTK_RESPONSE_ACCEPT,
+	                         NULL);
 
 	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
@@ -528,14 +545,14 @@ static void panel_edit_external(WemedPanel* panel, gboolean open_with, WemedWind
 
 static void menu_part_export(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget *dialog = gtk_file_chooser_dialog_new(
-			_("Save File"),
-			GTK_WINDOW(w->root_window),
-			GTK_FILE_CHOOSER_ACTION_SAVE,
-			_("_Cancel"),
-			GTK_RESPONSE_CANCEL,
-			_("_Save"),
-			GTK_RESPONSE_ACCEPT,
-			NULL);
+	                        _("Save File"),
+	                        GTK_WINDOW(w->root_window),
+	                        GTK_FILE_CHOOSER_ACTION_SAVE,
+	                        _("_Cancel"),
+	                        GTK_RESPONSE_CANCEL,
+	                        _("_Save"),
+	                        GTK_RESPONSE_ACCEPT,
+	                        NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
 	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), g_mime_part_get_filename(GMIME_PART(w->current_part)));
 
@@ -560,29 +577,29 @@ static void menu_help_website(GtkMenuItem* item, WemedWindow* w) {
 
 static void menu_help_headers(GtkMenuItem* item, WemedWindow* w) {
 	GtkWidget* dialog = gtk_dialog_new_with_buttons(
-			"MIME Headers",
-			GTK_WINDOW(w->root_window),
-			GTK_DIALOG_MODAL,
-			_("_Close"),
-			GTK_RESPONSE_ACCEPT,
-			NULL);
+	                        "MIME Headers",
+	                        GTK_WINDOW(w->root_window),
+	                        GTK_DIALOG_MODAL,
+	                        _("_Close"),
+	                        GTK_RESPONSE_ACCEPT,
+	                        NULL);
 	GtkWidget* content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	GtkWidget* text = gtk_text_view_new();
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
-	char* header_info;
-	asprintf(&header_info, "%s\n\n" 
-		"To: <Name> <<email@address>>, <Name> <<email@address>>\n"
-		"cc: <Name> <<email@address>>, <Name> <<email@address>>\n"
-		"bcc: <Name> <<email@address>>, <Name> <<email@address>>\n"
-		"From: <Name> <<email@address>>\n"
-		"Subject: <subject>\n"
-		"Reply-To: <Name> <<email@address>>\n"
-		"Content-Type: <mime-type>; [charset=<charset>]\n"
-		"Content-Disposition: (attachment|inline); [filename=<filename>;]\n"
-		"Content-Transfer-Encoding: (7bit|quoted-printable|base64)\n"
-		"Content-ID: <cid>\n",
-		_("The following are the most useful MIME headers:"));
-	gtk_text_buffer_set_text(gtk_text_view_get_buffer(GTK_TEXT_VIEW(text)), header_info, strlen(header_info));
+	char* header_info = NULL;
+	int len = asprintf(&header_info, "%s\n\n"
+	                       "To: <Name> <<email@address>>, <Name> <<email@address>>\n"
+	                       "cc: <Name> <<email@address>>, <Name> <<email@address>>\n"
+	                       "bcc: <Name> <<email@address>>, <Name> <<email@address>>\n"
+	                       "From: <Name> <<email@address>>\n"
+	                       "Subject: <subject>\n"
+	                       "Reply-To: <Name> <<email@address>>\n"
+	                       "Content-Type: <mime-type>; [charset=<charset>]\n"
+	                       "Content-Disposition: (attachment|inline); [filename=<filename>;]\n"
+	                       "Content-Transfer-Encoding: (7bit|quoted-printable|base64)\n"
+	                       "Content-ID: <cid>\n",
+	         _("The following are the most useful MIME headers:"));
+	gtk_text_buffer_set_text(gtk_text_view_get_buffer(GTK_TEXT_VIEW(text)), header_info, len);
 	free(header_info);
 	gtk_container_add(GTK_CONTAINER(content), text);
 	gtk_widget_show_all(dialog);
@@ -592,14 +609,14 @@ static void menu_help_headers(GtkMenuItem* item, WemedWindow* w) {
 
 static void menu_help_about(GtkMenuItem* item, WemedWindow* w) {
 	gtk_show_about_dialog(
-			GTK_WINDOW(w->root_window),
-			"program-name", "Wemed",
-			"version", "0.1",
-			"logo", w->icon,
-			"license-type", GTK_LICENSE_GPL_3_0,
-			"copyright", "2013-2017 Oliver Giles",
-			"website", "http://wemed.ohwg.net",
-			NULL);
+	    GTK_WINDOW(w->root_window),
+	    "program-name", "Wemed",
+	    "version", "0.1",
+	    "logo", w->icon,
+	    "license-type", GTK_LICENSE_GPL_3_0,
+	    "copyright", "2013-2017 Oliver Giles",
+	    "website", "http://wemed.ohwg.net",
+	    NULL);
 }
 
 //<<<<<<<<<<<<<<<<<<< END MENU BAR CALLBACK SECTION
@@ -786,17 +803,18 @@ gboolean wemed_window_open(WemedWindow* w, const char* filename) {
 		update_title(w);
 		set_clean(w);
 		return TRUE;
-	} else return FALSE;
+	} else
+		return FALSE;
 }
 
 WemedWindow* wemed_window_create() {
 	WemedWindow* w = g_new0(WemedWindow, 1);
 
 	w->root_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	w->icon = gtk_icon_theme_load_icon(system_icon_theme, "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
+	w->icon = gtk_icon_theme_load_icon(gtk_icon_theme_get_default(), "wemed", 16, GTK_ICON_LOOKUP_USE_BUILTIN, 0);
 	gtk_window_set_icon(GTK_WINDOW(w->root_window), w->icon);
 	gtk_window_set_position(GTK_WINDOW(w->root_window), GTK_WIN_POS_CENTER);
-	gtk_window_set_default_size(GTK_WINDOW(w->root_window), 640, 480);
+	gtk_window_set_default_size(GTK_WINDOW(w->root_window), 720, 576);
 	g_signal_connect(w->root_window, "delete-event", G_CALLBACK(delete_event_handler), w);
 	GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	GtkWidget* menubar = build_menubar(w);

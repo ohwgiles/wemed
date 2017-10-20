@@ -28,9 +28,9 @@ typedef struct {
 	const char* mimeapp_name;
 } WemedPanelDoc;
 
-GType wemed_panel_get_type();
+GType wemed_panel_get_type(void);
 
-GtkWidget* wemed_panel_new();
+GtkWidget* wemed_panel_new(void);
 
 // Loads a new MIME part into the display pane
 void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc);
