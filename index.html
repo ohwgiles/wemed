@@ -30,7 +30,7 @@
 <div id="main">
 <h1>*wemed</h1>
 <h2>A multipart MIME document viewer and editor</h2>
-<p>Current version: 0.4</p>
+<p>Current version: 0.5</p>
 <div class="banner">
 <ul>
 <li><img src="screen1.png"></li>
@@ -47,28 +47,33 @@ $(function() {
 </script>
 <h2>About</h2>
 <p>Wemed allows you to create, edit and view multipart MIME documents, including mail message (.eml) files and web page archives (.mhtml)</p>
-<p>MIME is defined by rfc5322, which is a revision of rfc2822, itself a successor to rfc822. Modern eml files are still given the MIME type of message/rfc822.</p>
-<p>Wemed is based on gtk-3.0, libwebkitgtk-3.0 and gmime-2.6</p>
-<p>Wemed is GPLv3 licensed.</p>
+<p>MIME is defined by <a href="https://www.ietf.org/rfc/rfc5322.txt">rfc5322</a>, which is a revision of <a href="https://www.ietf.org/rfc/rfc2822.txt">rfc2822</a>, itself a successor to <a href="https://www.ietf.org/rfc/rfc822.txt">rfc822</a>. Modern eml files are still given the MIME type of message/rfc822.</p>
+<p>Wemed is based on <a href="https://www.gtk.org/">gtk</a>, <a href="https://webkitgtk.org/">webkit2gtk</a> and <a href="http://spruce.sourceforge.net/gmime/">gmime</a>, and is licensed under the <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPLv3</a></p>
 <h2>Q &amp; A</h2>
 <p><strong>How do I install wemed?</strong><br>
 For Arch Linux, wemed is available <a href="https://aur.archlinux.org/packages/wemed">from the AUR</a>:<br>
 <div class="code">$ yaourt -S wemed</div>
+
+<div style="text-decoration:line-through">
 Ubuntu users can fetch the binary from Launchpad:<br>
 <div class="code">
 $ sudo apt-add-repository ppa:ohw-giles/wemed <br>
 $ sudo apt-get update<br>
 $ sudo apt-get install wemed
 </div>
+</div>
+The launchpad PPA is out of date and I have no interest in maintaining it.<br><br>
+
 To install from source:<br>
 <div class="code">
-$ # first install development libraries for webkitgtk-3.0 and gmime-2.6<br>
+$ # first install development libraries for gtk, webkit2gtk and gmime<br>
 $ git clone https://github.com/ohwgiles/wemed.git<br>
-$ mkdir -p path/to/build &amp;&amp; cd path/to/build<br>
-$ cmake path/to/source<br>
-$ make</div>
+$ cd wemed<br>
+$ cmake -DCMAKE_BUILD_TYPE=Release .<br>
+$ make<br>
+$ sudo make install</div>
 <p><strong>I found a bug / I want to request a feature</strong><br>
-Contact me <a href="https://github.com/ohwgiles">through github</a>. Or, fork wemed and send me a pull request</p>
+Use the <a href="https://github.com/ohwgiles/wemed/issues">Github issue tracker</a>. Or fork the repository and send me a pull request</p>
 <p><strong>Command-line version?</strong><br>
 Try <a href="http://www.pldaniels.com/ripmime/">ripmime</a></p>
 </div>
