@@ -373,9 +373,9 @@ GByteArray* mime_model_object_from_cid(GObject* emitter, const char* cid, gpoint
 	return g_byte_array_new_take((guint8*)str.str, str.len);
 }
 
-static gint64 stream_test_len(GMimeStream* stream) {
+static gsize stream_test_len(GMimeStream* stream) {
 	GMimeStream* null_stream = g_mime_stream_null_new();
-	gint64 len = g_mime_stream_write_to_stream(stream, null_stream);
+	gsize len = g_mime_stream_write_to_stream(stream, null_stream);
 	g_mime_stream_reset(stream);
 	g_object_unref(null_stream);
 	return len;
@@ -425,17 +425,14 @@ GString mime_model_part_content(GMimeObject* obj) {
 	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), decoding_filter);
 	g_mime_stream_filter_add(GMIME_STREAM_FILTER(stream_filter), encoding_filter);
 	// get the length of the decoded data
-	gint64 decoded_length = stream_test_len(stream_filter);
-	if(decoded_length > 0) {
-		ret.str = (char*) malloc((size_t) decoded_length + 1); // null termination
-		ret.allocated_len = decoded_length+1;
-		ret.len = decoded_length;
-		write_stream_to_mem(stream_filter, ret.str, decoded_length);
-	}
+	gsize decoded_length = stream_test_len(stream_filter);
+	ret.str = (char*) malloc((size_t) decoded_length + 1); // null termination
+	ret.allocated_len = decoded_length+1;
+	ret.len = decoded_length;
+	write_stream_to_mem(stream_filter, ret.str, decoded_length);
 	g_object_unref(decoding_filter);
 	g_object_unref(encoding_filter);
 	g_object_unref(stream_filter);
 
 	return ret;
 }
-

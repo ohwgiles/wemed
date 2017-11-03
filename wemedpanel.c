@@ -468,13 +468,16 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 	gtk_text_buffer_set_modified(d->headertext, FALSE);
 
 	gtk_widget_set_sensitive(d->headerview, TRUE);
-
 	if(doc.content.str && doc.content_type) {
-		GBytes* bytes = g_bytes_new(doc.content.str, doc.content.len);
 		if(strncmp(doc.content_type, "text/", 5) == 0) {
 			if(strncmp(&doc.content_type[5], "html", 4) == 0 && !d->view_source) {
 				// use webkit widget
+				// Since the content is a string, include the NULL terminator in the GBytes size.
+				// webkit will refuse to load a GBytes with zero length.
+				// webkit_web_view_load_html is not used since there is no way to set the charset
+				GBytes* bytes = g_bytes_new(doc.content.str, doc.content.len + 1);
 				webkit_web_view_load_bytes(WEBKIT_WEB_VIEW(d->webview), bytes, doc.content_type, doc.charset, NULL);
+				g_bytes_unref(bytes);
 				webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
 				gtk_widget_show(d->toolbar);
 				// start the progress bar, it should be hidden on completion of load
@@ -499,7 +502,9 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 			}
 		} else if(webkit_web_view_can_show_mime_type(WEBKIT_WEB_VIEW(d->webview), doc.content_type)) {
 			// load image or other webkit-displayable read-only type
+			GBytes* bytes = g_bytes_new(doc.content.str, doc.content.len);
 			webkit_web_view_load_bytes(WEBKIT_WEB_VIEW(d->webview), bytes, doc.content_type, doc.charset, NULL);
+			g_bytes_unref(bytes);
 		} else {
 			// unhandled type - offer to open with external app
 			char* label = NULL;
