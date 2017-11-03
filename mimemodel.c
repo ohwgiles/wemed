@@ -281,6 +281,21 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 		parent_part = GMIME_MULTIPART(parent_or_sibling);
 	} else {
 		parent_iter = parent_node(m, iter_from_obj(m, parent_or_sibling));
+		if(parent_iter.stamp == 0) {
+			// This PART is the root element. Reparent it to a new multipart node
+			// before continuing.
+			parent_iter = iter_from_obj(m, parent_or_sibling);
+			GMimeContentType* content_type = g_mime_content_type_new_from_string("multipart/mixed");
+			m->message = g_mime_object_new(content_type);
+			// force boundary string generation
+			g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
+			g_object_unref(content_type);
+			add_part_to_store(m, &parent_iter, m->message);
+			g_mime_multipart_add(GMIME_MULTIPART(m->message), parent_or_sibling);
+			GtkTreeIter this_new_iter;
+			gtk_tree_store_append(m->store, &this_new_iter, &parent_iter);
+			add_part_to_store(m, &this_new_iter, parent_or_sibling);
+		}
 		parent_part = GMIME_MULTIPART(obj_from_iter(m, parent_iter));
 	}
 
