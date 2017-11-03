@@ -12,12 +12,41 @@
 #include "mimemodel.h"
 #include "mimeapp.h"
 
+struct _MimeModelClass {
+	GObjectClass base;
+};
+
 struct _MimeModel {
+	GObject base;
 	GtkTreeStore* store;
 	GtkTreeModel* filter;
 	GMimeObject* message;
 	gboolean filter_enabled;
 };
+
+G_DEFINE_TYPE(MimeModel, mime_model, G_TYPE_OBJECT)
+
+// signals
+enum {
+	MM_NODE_INSERTED,
+	MM_SIG_LAST
+};
+
+static guint mime_model_signals[MM_SIG_LAST] = {0};
+
+static void mime_model_class_init(MimeModelClass* class) {
+	mime_model_signals[MM_NODE_INSERTED] = g_signal_new(
+	      "node-inserted",
+	      G_TYPE_FROM_CLASS ((GObjectClass*)class),
+	      G_SIGNAL_RUN_LAST | G_SIGNAL_ACTION,
+	      0, // v-table offset
+	      NULL,
+	      NULL,
+	      NULL, //marshaller
+	      G_TYPE_NONE, // return type
+	      1, // num args
+	      G_TYPE_POINTER); // arg types
+}
 
 static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part) {
 	GdkPixbuf* icon = NULL;
@@ -273,17 +302,17 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 	GtkTreeIter result;
 	gtk_tree_store_append(m->store, &result, &parent_iter);
 	add_part_to_store(m, &result, new_node);
+
+	GtkTreeIter filter_iter = {0};
+	if(gtk_tree_model_filter_convert_child_iter_to_iter(GTK_TREE_MODEL_FILTER(m->filter), &filter_iter, &result)) {
+		g_signal_emit_by_name(m, "node-inserted", &filter_iter);
+	}
+
 	return new_node;
 }
 
-
 MimeModel* mime_model_new(GString content) {
-	MimeModel* m = g_new0(MimeModel, 1);
-
-	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
-	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
-	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, m, NULL);
-	m->filter_enabled = FALSE;
+	MimeModel* m = g_object_new(mime_model_get_type(), NULL);
 
 	if(content.str) {
 		GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content.str, content.len);
@@ -304,6 +333,14 @@ MimeModel* mime_model_new(GString content) {
 	}
 
 	return m;
+}
+
+void mime_model_init(MimeModel* m) {
+	m->store = gtk_tree_store_new(MIME_MODEL_NUM_COLS, G_TYPE_POINTER, GDK_TYPE_PIXBUF, G_TYPE_STRING);
+	m->filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(m->store), NULL);
+
+	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(m->filter), is_content_disposition_inline, m, NULL);
+	m->filter_enabled = FALSE;
 }
 
 GtkTreeModel* mime_model_get_gtk_model(MimeModel* m) {

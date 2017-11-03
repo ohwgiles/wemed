@@ -27,7 +27,7 @@ static void mime_tree_class_init(MimeTreeClass* class) {
 	      NULL,
 	      NULL,
 	      NULL, //marshaller
-	      G_TYPE_NONE, // return tye
+	      G_TYPE_NONE, // return type
 	      1, // num args
 	      G_TYPE_POINTER); // arg types
 }
@@ -62,9 +62,18 @@ void mime_tree_init(MimeTree* mt) {
 	gtk_tree_view_column_pack_start(col, renderer, TRUE);
 	gtk_tree_view_column_add_attribute(col, renderer, "text", MIME_MODEL_COL_NAME);
 
-	GtkTreeSelection *select = gtk_tree_view_get_selection (tv);
+	GtkTreeSelection *select = gtk_tree_view_get_selection(tv);
 	gtk_tree_selection_set_mode(select, GTK_SELECTION_SINGLE);
 	
 	g_signal_connect(G_OBJECT(select), "changed", G_CALLBACK(selection_changed), mt);
+}
+
+static void expand_mime_tree_row(GtkTreeModel* model, GtkTreePath* path, GtkTreeIter* iter, gpointer data) {
+	gtk_tree_view_expand_row(GTK_TREE_VIEW(data), path, FALSE);
+}
+
+void mime_tree_node_inserted(MimeTree* data, GtkTreeIter* path, gpointer b) {
+	gtk_tree_selection_selected_foreach(gtk_tree_view_get_selection(GTK_TREE_VIEW(data)), expand_mime_tree_row, data);
+	gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(data)), path);
 }
 

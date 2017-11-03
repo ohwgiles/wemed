@@ -1,6 +1,6 @@
 #ifndef MIMETREE_H
 #define MIMETREE_H
-/* Copyright 2013 Oliver Giles
+/* Copyright 2013-2017 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -20,9 +20,11 @@ struct _MimeTreeClass {
 	GtkTreeViewClass parent_class;
 };
 
-GType mime_tree_get_type();
+GType mime_tree_get_type(void);
 
-GtkWidget* mime_tree_new();
+GtkWidget* mime_tree_new(void);
+
+void mime_tree_node_inserted(MimeTree* data, GtkTreeIter* path, gpointer b);
 
 #endif
 

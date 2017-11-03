@@ -8,7 +8,9 @@
 #include <gtk/gtktreemodel.h>
 
 struct _MimeModel;
+struct _MimeModelClass;
 typedef struct _MimeModel MimeModel;
+typedef struct _MimeModelClass MimeModelClass;
 
 // columns in the table representing a MIME part
 enum {

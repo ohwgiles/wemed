@@ -81,6 +81,7 @@ static GString slurp_and_close(FILE* fp) {
 
 static void set_model(WemedWindow* w, MimeModel* m) {
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->mime_tree), mime_model_get_gtk_model(m));
+	g_signal_connect_swapped(m, "node-inserted", G_CALLBACK(mime_tree_node_inserted), w->mime_tree);
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(w->mime_tree));
 
 	w->model = m;
