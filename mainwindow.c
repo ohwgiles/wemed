@@ -193,14 +193,8 @@ static void register_changes(WemedWindow* w) {
 	if(strcmp(new_headers.str,g_mime_object_get_headers(w->current_part)) != 0) {
 		set_dirtied(NULL, w);
 		GMimeObject* new_part = mime_model_update_header(w->model, w->current_part, new_headers);
-		// a header change can cause a display change in the panel,
-		// for example changing mime type or encoding. This causes the
-		// display to be updated immediately.
-		if(new_part) {
-			set_current_part(w, new_part);
-		} else {
+		if(new_part == NULL)
 			fprintf(stderr, "new_part is NULL\n");
-		}
 	}
 	free(new_headers.str);
 }
