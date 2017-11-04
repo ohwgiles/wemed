@@ -490,12 +490,14 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 					gsize sz;
 					char* converted = g_convert(src.str, src.len, "utf8", doc.charset, NULL, &sz, NULL);
 					if(converted) {
-						free(src.str);
-						src.str = converted;
-						src.len = sz;
-					} else fprintf(stderr, "Conversion from %s to utf8 failed\n", doc.charset);
+						gtk_text_buffer_set_text(d->sourcetext, converted, sz);
+						free(converted);
+					} else
+						fprintf(stderr, "Conversion from %s to utf8 failed\n", doc.charset);
+				} else {
+					// already utf-8
+					gtk_text_buffer_set_text(d->sourcetext, src.str, src.len);
 				}
-				gtk_text_buffer_set_text(d->sourcetext, src.str, src.len);
 				gtk_source_buffer_set_language(GTK_SOURCE_BUFFER(d->sourcetext), gtk_source_language_manager_guess_language(gtk_source_language_manager_get_default(), NULL, doc.content_type));
 				gtk_text_buffer_set_modified(d->sourcetext, FALSE);
 				gtk_widget_show(d->sourceview);
