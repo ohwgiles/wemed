@@ -485,10 +485,10 @@ void wemed_panel_load_doc(WemedPanel* wp, WemedPanelDoc doc) {
 			} else {
 				// use sourceview widget
 				GString src = doc.content;
-				if(doc.charset && strcmp(doc.charset, "utf8") != 0) {
+				if(doc.charset && strcasecmp(doc.charset, "utf-8") != 0) {
 					// GtkTextBuffer must be fed utf-8
 					gsize sz;
-					char* converted = g_convert(src.str, src.len, "utf8", doc.charset, NULL, &sz, NULL);
+					char* converted = g_convert(src.str, src.len, "utf-8", doc.charset, NULL, &sz, NULL);
 					if(converted) {
 						gtk_text_buffer_set_text(d->sourcetext, converted, sz);
 						free(converted);

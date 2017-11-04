@@ -174,9 +174,9 @@ static void register_changes(WemedWindow* w) {
 			// if the desired encoding is different
 			GString new_content = wemed_panel_get_content(WEMED_PANEL(w->panel));
 			const char* charset = g_mime_object_get_content_type_parameter(w->current_part, "charset");
-			if(charset && strcmp("utf8", charset) != 0) {
+			if(charset && strcasecmp("utf-8", charset) != 0) {
 				gsize sz;
-				char* converted = g_convert(new_content.str, new_content.len, charset, "utf8", NULL, &sz, NULL);
+				char* converted = g_convert(new_content.str, new_content.len, charset, "utf-8", NULL, &sz, NULL);
 				if(converted) {
 					free(new_content.str);
 					new_content.str = converted;
