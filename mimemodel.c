@@ -413,7 +413,7 @@ void mime_model_free(MimeModel* m) {
 		g_object_unref(m->store);
 		g_object_unref(m->message);
 		g_object_unref(m->filter);
-		g_free(m);
+		g_object_unref(m);
 	}
 }
 

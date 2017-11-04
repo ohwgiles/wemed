@@ -847,9 +847,9 @@ WemedWindow* wemed_window_create() {
 
 void wemed_window_free(WemedWindow* w) {
 	g_free(w->menu_widgets);
-	g_free(w);
 	free(w->mime_app.name);
 	free(w->mime_app.exec);
+	g_free(w);
 }
 
 
