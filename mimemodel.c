@@ -1,4 +1,4 @@
-/* Copyright 2013-2017 Oliver Giles
+/* Copyright 2013-2022 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -50,15 +50,16 @@ static void mime_model_class_init(MimeModelClass* class) {
 
 static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part) {
 	GdkPixbuf* icon = NULL;
-	const char* name;
-	const char* icon_name;
+	char* name;
+	char* icon_name;
 
 	if(GMIME_IS_PART(part)) {
+		const char *tmp = g_mime_part_get_filename(GMIME_PART(part));
+		name = tmp ? strdup(tmp) : mime_model_content_type(part);
 		icon_name = mime_model_content_type(part);
-		name = g_mime_part_get_filename(GMIME_PART(part)) ?: mime_model_content_type(part);
 	} else {
-		icon_name = "package";
 		name = mime_model_content_type(part);
+		icon_name = strdup("package");
 	}
 
 	GIcon* gicon = g_content_type_get_icon(icon_name);
@@ -78,6 +79,9 @@ static void add_part_to_store(MimeModel* m, GtkTreeIter* iter, GMimeObject* part
 
 	if(icon)
 		g_object_unref(icon);
+
+	free(icon_name);
+	free(name);
 }
 
 // At present it seems the only way to get a GtkTreeIter from
@@ -160,10 +164,10 @@ static void populate_tree(GMimeObject *up, GMimeObject *part, gpointer user_data
 }
 
 void mime_model_create_blank_email(MimeModel* m) {
-	g_mime_object_append_header(m->message, "To", "");
-	g_mime_object_append_header(m->message, "From", "");
-	g_mime_object_append_header(m->message, "Subject", "");
-	g_mime_object_append_header(m->message, "MIME-Version", "1.0");
+	g_mime_object_append_header(m->message, "To", "", "utf-8");
+	g_mime_object_append_header(m->message, "From", "", "utf-8");
+	g_mime_object_append_header(m->message, "Subject", "", "utf-8");
+	g_mime_object_append_header(m->message, "MIME-Version", "1.0", "utf-8");
 	// force boundary generation
 	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
 	// add a multipart/alternative with text and html parts
@@ -187,7 +191,7 @@ void mime_model_update_content(MimeModel* m, GMimePart* part, GString content) {
 		g_object_unref(content_stream);
 	}
 	GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(encoded_content, g_mime_part_get_content_encoding(GMIME_PART(part)));
-	g_mime_part_set_content_object(GMIME_PART(part), data);
+	g_mime_part_set_content(GMIME_PART(part), data);
 	g_object_unref(encoded_content);
 	g_object_unref(data);
 }
@@ -213,7 +217,7 @@ void mime_model_part_replace(MimeModel* m, GMimeObject* part_old, GMimeObject* p
 GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, GString new_header) {
 	GMimeStream* memstream = g_mime_stream_mem_new_with_buffer(new_header.str, new_header.len);
 	GMimeParser* parse = g_mime_parser_new_with_stream(memstream);
-	GMimeObject* part_new = g_mime_parser_construct_part(parse);
+	GMimeObject* part_new = g_mime_parser_construct_part(parse, g_mime_parser_options_get_default());
 	if(!part_new)
 		return NULL;
 
@@ -230,7 +234,7 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, GStri
 			GMimeStream* new_data = g_mime_stream_mem_new();
 			GMimeFilter* decode = g_mime_filter_basic_new(enc_old, FALSE);
 			GMimeFilter* encode = g_mime_filter_basic_new(enc_new, TRUE);
-			GMimeStream* original = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(GMIME_PART(part_old)));
+			GMimeStream* original = g_mime_data_wrapper_get_stream(g_mime_part_get_content(GMIME_PART(part_old)));
 			g_mime_stream_reset(original);
 			GMimeStream* filter = g_mime_stream_filter_new(original);
 			g_mime_stream_filter_add(GMIME_STREAM_FILTER(filter), decode);
@@ -238,14 +242,14 @@ GMimeObject* mime_model_update_header(MimeModel* m, GMimeObject* part_old, GStri
 			g_mime_stream_write_to_stream(filter, new_data);
 			g_mime_stream_reset(new_data);
 			GMimeDataWrapper* wrapper = g_mime_data_wrapper_new_with_stream(new_data, enc_new);
-			g_mime_part_set_content_object(GMIME_PART(part_new), wrapper);
+			g_mime_part_set_content(GMIME_PART(part_new), wrapper);
 			g_object_unref(new_data);
 			g_object_unref(decode);
 			g_object_unref(encode);
 			g_object_unref(filter);
 			g_object_unref(wrapper);
 		} else
-			g_mime_part_set_content_object(GMIME_PART(part_new), g_mime_part_get_content_object(GMIME_PART(part_old)));
+			g_mime_part_set_content(GMIME_PART(part_new), g_mime_part_get_content(GMIME_PART(part_old)));
 	} else if(GMIME_IS_MULTIPART(part_new)) {
 		// move all the mime parts from the old multipart to the new multipart
 		for(int i = 0, n = g_mime_multipart_get_count(GMIME_MULTIPART(part_old)); i < n; ++i) {
@@ -272,8 +276,8 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 	GMimeMultipart* parent_part = NULL;
 	GtkTreeIter parent_iter;
 
-	GMimeContentType* content_type = g_mime_content_type_new_from_string(content_type_string);
-	GMimeObject* new_node = g_mime_object_new(content_type);
+	GMimeContentType* content_type = g_mime_content_type_parse(g_mime_parser_options_get_default(), content_type_string);
+	GMimeObject* new_node = g_mime_object_new(g_mime_parser_options_get_default(), content_type);
 	g_object_unref(content_type);
 
 	if(GMIME_IS_MULTIPART(parent_or_sibling)) {
@@ -285,11 +289,9 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 			// This PART is the root element. Reparent it to a new multipart node
 			// before continuing.
 			parent_iter = iter_from_obj(m, parent_or_sibling);
-			GMimeContentType* content_type = g_mime_content_type_new_from_string("multipart/mixed");
-			m->message = g_mime_object_new(content_type);
+			m->message = g_mime_object_new_type(g_mime_parser_options_get_default(), "multipart", "mixed");
 			// force boundary string generation
 			g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
-			g_object_unref(content_type);
 			add_part_to_store(m, &parent_iter, m->message);
 			g_mime_multipart_add(GMIME_MULTIPART(m->message), parent_or_sibling);
 			GtkTreeIter this_new_iter;
@@ -306,10 +308,10 @@ GMimeObject* mime_model_new_node(MimeModel* m, GMimeObject* parent_or_sibling, c
 
 	if(GMIME_IS_PART(new_node)) {
 		if(strncmp(content_type_string, "text/", 5) != 0)
-			g_mime_object_set_content_disposition(new_node, g_mime_content_disposition_new_from_string(GMIME_DISPOSITION_ATTACHMENT));
+			g_mime_object_set_content_disposition(new_node, g_mime_content_disposition_parse(g_mime_parser_options_get_default(), GMIME_DISPOSITION_ATTACHMENT));
 		GMimeStream* mem = g_mime_stream_mem_new();
 		GMimeDataWrapper* data = g_mime_data_wrapper_new_with_stream(mem, GMIME_CONTENT_ENCODING_DEFAULT);
-		g_mime_part_set_content_object(GMIME_PART(new_node), data);
+		g_mime_part_set_content(GMIME_PART(new_node), data);
 		g_object_unref(data);
 		g_object_unref(mem);
 	}
@@ -332,7 +334,7 @@ MimeModel* mime_model_new(GString content) {
 	if(content.str) {
 		GMimeStream* gfs = g_mime_stream_mem_new_with_buffer(content.str, content.len);
 		GMimeParser* parser = g_mime_parser_new_with_stream(gfs);
-		GMimeMessage* message = g_mime_parser_construct_message(parser);
+		GMimeMessage* message = g_mime_parser_construct_message(parser, g_mime_parser_options_get_default());
 		m->message = g_mime_message_get_mime_part(message);
 	} else {
 		m->message = (GMimeObject*) g_mime_multipart_new();
@@ -371,13 +373,14 @@ void mime_model_filter_inline(MimeModel* m, gboolean en) {
 	gtk_tree_model_filter_refilter(GTK_TREE_MODEL_FILTER(m->filter));
 }
 
-const char* mime_model_content_type(GMimeObject* obj) {
-	return g_mime_content_type_to_string(g_mime_object_get_content_type(obj));
+char* mime_model_content_type(GMimeObject* obj) {
+	GMimeContentType* ct = g_mime_object_get_content_type(obj);
+	return g_strdup_printf("%s/%s", ct->type, ct->subtype);
 }
 
 
 void mime_model_write_part(GMimePart* part, FILE* fp) {
-	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content_object(part));
+	GMimeStream* gms = g_mime_data_wrapper_get_stream(g_mime_part_get_content(part));
 	g_mime_stream_reset(gms);
 	GMimeFilter* basic_filter = g_mime_filter_basic_new(g_mime_part_get_content_encoding(part), FALSE);
 	GMimeStream* stream_filter = g_mime_stream_filter_new(gms);
@@ -394,7 +397,7 @@ gboolean mime_model_write_to_file(MimeModel* m, FILE* fp) {
 	if(!gfs)
 		return FALSE;
 
-	g_mime_object_write_to_stream(GMIME_OBJECT(m->message), gfs);
+	g_mime_object_write_to_stream(GMIME_OBJECT(m->message), g_mime_format_options_get_default(), gfs);
 	g_object_unref(gfs);
 
 	return TRUE;
@@ -450,7 +453,7 @@ static gsize write_stream_to_mem(GMimeStream* stream, gchar* ptr, gint len) {
 
 GString mime_model_part_headers(GMimeObject* obj) {
 	GString ret;
-	ret.str = g_mime_object_get_headers(obj);
+	ret.str = g_mime_object_get_headers(obj, g_mime_format_options_get_default());
 	ret.len = strlen(ret.str);
 	ret.allocated_len = ret.len + 1;
 	return ret;
@@ -463,7 +466,7 @@ GString mime_model_part_content(GMimeObject* obj) {
 
 	GMimePart* part = GMIME_PART(obj);
 
-	GMimeDataWrapper* data_obj = g_mime_part_get_content_object(part);
+	GMimeDataWrapper* data_obj = g_mime_part_get_content(part);
 	if(data_obj == NULL) // empty part
 		return ret;
 

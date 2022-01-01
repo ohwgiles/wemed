@@ -1,9 +1,7 @@
-/* Copyright 2013-2017 Oliver Giles
+/* Copyright 2013-2022 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
-
-
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <webkit2/webkit2.h>
@@ -20,8 +18,27 @@
 #define _(str) gettext(str)
 
 extern GtkIconTheme* system_icon_theme;
-G_DEFINE_TYPE(WemedPanel, wemed_panel, GTK_TYPE_PANED)
-#define GET_D(o) WemedPanelPrivate* d = (G_TYPE_INSTANCE_GET_PRIVATE ((o), wemed_panel_get_type(), WemedPanelPrivate))
+
+// the private elements
+typedef struct {
+	GtkWidget* webview;
+	WebKitWebContext* webkit_ctx;
+	GtkWidget* sourceview;
+	GtkTextBuffer* sourcetext;
+	gboolean webkit_dirty;
+	GtkWidget* headerview;
+	GtkTextBuffer* headertext;
+	GtkWidget* toolbar;
+	GtkWidget* progress_bar;
+	gboolean load_remote;
+	gboolean view_source;
+	GtkWidget* open_ext_box;
+	GtkWidget* open_ext_btn;
+	GtkWidget* open_with_ext_btn;
+} WemedPanelPrivate;
+
+G_DEFINE_TYPE_WITH_PRIVATE(WemedPanel, wemed_panel, GTK_TYPE_PANED)
+#define GET_D(o) WemedPanelPrivate* d = wemed_panel_get_instance_private(o)
 
 // signals
 enum {
@@ -33,25 +50,6 @@ enum {
 };
 
 static guint wemed_panel_signals[WP_SIG_LAST] = {0};
-
-// the private elements
-typedef struct {
-	GtkWidget* webview;
-	WebKitWebContext* webkit_ctx;
-	GtkWidget* sourceview;
-	GtkTextBuffer* sourcetext;
-	gboolean webkit_dirty;
-	int ipc;
-	GtkWidget* headerview;
-	GtkTextBuffer* headertext;
-	GtkWidget* toolbar;
-	GtkWidget* progress_bar;
-	gboolean load_remote;
-	gboolean view_source;
-	GtkWidget* open_ext_box;
-	GtkWidget* open_ext_btn;
-	GtkWidget* open_with_ext_btn;
-} WemedPanelPrivate;
 
 // called when WebKit loads part of the HTML content. Used to dynamically
 // update the position of the GTK progress bar
@@ -81,9 +79,23 @@ GString wemed_panel_get_headers(WemedPanel* wp) {
 	return s;
 }
 
+static void get_content_callback(GObject *source_object, GAsyncResult *res, gpointer user_data) {
+	WebKitJavascriptResult *js_res;
+	JSCValue* val;
+	GString* out_str = (GString*) user_data;
+
+	js_res = webkit_web_view_run_javascript_finish (WEBKIT_WEB_VIEW (source_object), res, NULL);
+	g_assert(js_res);
+	val = webkit_javascript_result_get_js_value (js_res);
+	g_assert(jsc_value_is_string(val));
+	out_str->str = jsc_value_to_string(val);
+	out_str->len = strlen(out_str->str);
+	webkit_javascript_result_unref (js_res);
+}
+
 // In webkit1 you could synchronously get the html contents. Making this method
 // work asynchronously is a bigger effort than I have time for right now, so here
-// we block on the IPC socket to get our synchronicity back
+// we manually iterate the gtk mainloop until our callback is dealt with
 GString wemed_panel_get_content(WemedPanel* wp) {
 	GET_D(wp);
 	GString result = {0};
@@ -95,16 +107,10 @@ GString wemed_panel_get_content(WemedPanel* wp) {
 		result.str = gtk_text_buffer_get_text(d->sourcetext, &start, &end, TRUE);
 		result.len = gtk_text_iter_get_offset(&end);
 	} else {
-		// trigger a dump of the DOM content in the web extension
-		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.dispatchEvent(new CustomEvent('wemed_content'));", NULL, NULL, NULL);
-
-		// block on the IPC socket to receive the data string
-		int len;
-		read(d->ipc, &len, sizeof(len));
-		result.str = (char*) malloc(len+1);
-		read(d->ipc, result.str, len);
-		result.str[len] = '\0';
-		result.len = len;
+		GMainContext* ctx = g_main_context_default();
+		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.documentElement.outerHTML", NULL, get_content_callback, &result);
+		while(result.str == NULL)
+			g_main_context_iteration(ctx, TRUE);
 	}
 
 	return result;
@@ -128,7 +134,7 @@ static void edit_strike_cb(GtkToolItem* item, WemedPanel* wp) {
 }
 static void edit_font_cb(GtkFontButton* fb, WemedPanel* wp) {
 	GET_D(wp);
-	PangoFontDescription* font = pango_font_description_from_string(gtk_font_button_get_font_name(fb));
+	PangoFontDescription* font = gtk_font_chooser_get_font_desc(GTK_FONT_CHOOSER(fb));
 	const char* family = pango_font_description_get_family(font);
 	int size = pango_font_description_get_size(font);
 	char* family_cmd;
@@ -228,41 +234,24 @@ static void dirtied_cb(GObject* emitter, WemedPanel* wp) {
 		g_signal_emit(wp, wemed_panel_signals[WP_SIG_DIRTIED], 0);
 }
 
-
-static gboolean webkit_process_message(GIOChannel* source, GIOCondition condition, gpointer data) {
-	WemedPanel* wp = (WemedPanel*) data;
+gboolean webext_msg_received(WebKitWebView* web_view, WebKitUserMessage *message, gpointer user_data) {
+	WemedPanel* wp = (WemedPanel*) user_data;
 	GET_D(wp);
-	int opcode = -1;
-	int cfd = g_io_channel_unix_get_fd(source);
-	if(read(cfd, &opcode, sizeof(int)) != sizeof(int))
-		return perror("read"), FALSE;
 
-	if(opcode == 0) {
+	if(g_strcmp0(webkit_user_message_get_name(message), "dirtied") == 0) {
 		// child process notified webview was dirtied
 		if(!d->webkit_dirty) {
 			d->webkit_dirty = TRUE;
 			g_signal_emit(wp, wemed_panel_signals[WP_SIG_DIRTIED], 0);
 		}
-	} else {
-		g_printerr("IPC sent %d\n", opcode);
-		return FALSE;
+		return TRUE;
 	}
-	return TRUE;
-}
 
-static gboolean webkit_process_connected(GIOChannel *source, GIOCondition condition, gpointer data) {
-	WemedPanel* wp = (WemedPanel*) data;
-	GET_D(wp);
-	int cfd = accept(g_io_channel_unix_get_fd(source), NULL, NULL);
-	d->ipc = cfd;
-	GIOChannel* channel = g_io_channel_unix_new(cfd);
-	g_io_add_watch(channel, G_IO_IN, &webkit_process_message, data);
 	return FALSE;
 }
 
 static void initialize_web_extensions(WebKitWebContext *context, gpointer user_data) {
 	webkit_web_context_set_web_extensions_directory(context, WEMED_WEBEXT_DIR);
-	webkit_web_context_set_web_extensions_initialization_user_data(context, g_variant_new_string((gchar*) user_data));
 }
 
 static void openext_cb(GtkButton* btn, WemedPanel* wp) {
@@ -301,28 +290,13 @@ static void wemed_panel_init(WemedPanel* wp) {
 	GtkPaned* paned = GTK_PANED(wp);
 	gtk_orientable_set_orientation (GTK_ORIENTABLE (paned), GTK_ORIENTATION_VERTICAL);
 
-	struct sockaddr_un saddr;
-	// create an abstract unix socket to communicate with the web extension
-	int sd = socket(AF_UNIX, SOCK_STREAM, 0);
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sun_family = AF_UNIX;
-	// generate a semi-unique name for the pipe
-	sprintf(saddr.sun_path+1, "wemed-%d-%lu", getpid(), (((unsigned long)wp)>>8) & 0xFF);
-	if(bind(sd, &saddr, sizeof(struct sockaddr_un)) != 0)
-		perror("bind");
-	if(listen(sd, 1) != 0)
-		perror("listen");
-
-	GIOChannel* channel = g_io_channel_unix_new(sd);
-	g_io_add_watch(channel, G_IO_IN, &webkit_process_connected, wp);
-
 	// create and configure all our widgets
 	d->headerview = gtk_text_view_new();
 	gtk_text_view_set_monospace(GTK_TEXT_VIEW(d->headerview), TRUE);
 	d->headertext = gtk_text_view_get_buffer(GTK_TEXT_VIEW(d->headerview));
 	d->webkit_ctx = webkit_web_context_new();
 	webkit_web_context_set_cache_model(d->webkit_ctx, WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER);
-	g_signal_connect(d->webkit_ctx, "initialize-web-extensions", G_CALLBACK(initialize_web_extensions), saddr.sun_path+1);
+	g_signal_connect(d->webkit_ctx, "initialize-web-extensions", G_CALLBACK(initialize_web_extensions), NULL);
 	d->webview = webkit_web_view_new_with_context(d->webkit_ctx);
 	d->progress_bar = gtk_progress_bar_new();
 	d->open_ext_btn = gtk_button_new();
@@ -341,6 +315,7 @@ static void wemed_panel_init(WemedPanel* wp) {
 	// connect everything
 	g_signal_connect(G_OBJECT(d->webview), "notify::estimated-load-progress", G_CALLBACK(progress_changed_cb), wp);
 	g_signal_connect(G_OBJECT(d->webview), "show", G_CALLBACK(hide_progress_bar), d->progress_bar);
+	g_signal_connect(G_OBJECT(d->webview), "user-message-received", G_CALLBACK(webext_msg_received), wp);
 
 	GtkWidget* toolbar = gtk_toolbar_new();
 	{
@@ -410,7 +385,6 @@ static void wemed_panel_init(WemedPanel* wp) {
 }
 
 static void wemed_panel_class_init(WemedPanelClass* class) {
-	g_type_class_add_private(class, sizeof(WemedPanelPrivate));
 	wemed_panel_signals[WP_SIG_GET_CID] = g_signal_new(
 	    "cid-requested",
 	    G_TYPE_FROM_CLASS ((GObjectClass*)class),
@@ -531,12 +505,8 @@ void wemed_panel_show_source(WemedPanel* wp, gboolean en) {
 void wemed_panel_load_remote_resources(WemedPanel* wp, gboolean en) {
 	GET_D(wp);
 	d->load_remote = en;
-	// TODO: CustomEvent can take a 'detail' parameter which could be used for the value
-	// of this property, but I can't see how to retrieve it in the web extension
-	if(d->load_remote)
-		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.dispatchEvent(new CustomEvent('wemed_load_remote_true'));", NULL, NULL, NULL);
-	else
-		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.dispatchEvent(new CustomEvent('wemed_load_remote_false'));", NULL, NULL, NULL);
+	WebKitUserMessage* msg = webkit_user_message_new("load-remote-resources", g_variant_new_boolean(en));
+	webkit_web_view_send_message_to_page(WEBKIT_WEB_VIEW(d->webview), msg, NULL, NULL, NULL);
 }
 
 void wemed_panel_display_images(WemedPanel* wp, gboolean en) {

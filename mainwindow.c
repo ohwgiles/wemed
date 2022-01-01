@@ -1,4 +1,4 @@
-/* Copyright 2013-2017 Oliver Giles
+/* Copyright 2013-2022 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -102,7 +102,7 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 
 	GString headers = mime_model_part_headers(part);
 	const char* charset = g_mime_object_get_content_type_parameter(part, "charset");
-	const char* mime_type = mime_model_content_type(w->current_part);
+	char* mime_type = mime_model_content_type(w->current_part);
 	GString content = {0, 0, 0};
 
 	gtk_widget_set_sensitive(w->menu_widgets->menu_part_delete, (part != mime_model_root(w->model)));
@@ -117,7 +117,6 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit, TRUE);
 		gtk_widget_set_sensitive(w->menu_widgets->menu_part_edit_with, TRUE);
 		gtk_widget_set_sensitive(w->menu_widgets->menu_part_export, TRUE);
-
 		// if we're displaying html, respect the "view source" menu option
 		if(strcmp(mime_type, "text/html") == 0) {
 			gtk_widget_set_sensitive(w->menu_widgets->show_html_source, TRUE);
@@ -150,6 +149,7 @@ static void set_current_part(WemedWindow* w, GMimeObject* part) {
 	wemed_panel_load_doc(WEMED_PANEL(w->panel), doc);
 	g_free(content.str);
 	g_free(headers.str);
+	free(mime_type);
 }
 
 static void set_dirtied(GObject* caller, WemedWindow* w) {
@@ -168,7 +168,7 @@ static void register_changes(WemedWindow* w) {
 	// content types of text/ since other types can only be edited
 	// externally, at which time they get saved
 	if(GMIME_IS_PART(w->current_part)) {
-		const char* ct = mime_model_content_type(w->current_part);
+		char* ct = mime_model_content_type(w->current_part);
 		if(strncmp(ct, "text/", 5) == 0) {
 			// webkit returns content in utf-8, so we have to convert it back
 			// if the desired encoding is different
@@ -187,11 +187,12 @@ static void register_changes(WemedWindow* w) {
 			mime_model_update_content(w->model, GMIME_PART(w->current_part), new_content);
 			free(new_content.str);
 		}
+		free(ct);
 	}
 
 	// now do the headers
 	GString new_headers = wemed_panel_get_headers(WEMED_PANEL(w->panel));
-	if(strcmp(new_headers.str,g_mime_object_get_headers(w->current_part)) != 0) {
+	if(strcmp(new_headers.str,g_mime_object_get_headers(w->current_part, g_mime_format_options_get_default())) != 0) {
 		set_dirtied(NULL, w);
 		GMimeObject* new_part = mime_model_update_header(w->model, w->current_part, new_headers);
 		if(new_part == NULL)
@@ -488,7 +489,7 @@ static char* import_file_into_tree(WemedWindow* w,  GMimeObject* parent_or_sibli
 	if(disposition)
 		g_mime_object_set_disposition((GMimeObject*) part, disposition);
 	GString s = {0};
-	s.str = g_mime_object_get_headers((GMimeObject*) part);
+	s.str = g_mime_object_get_headers((GMimeObject*) part, g_mime_format_options_get_default());
 	s.len = strlen(s.str);
 	mime_model_update_header(w->model, (GMimeObject*) part, s);
 	free(mime_type);
@@ -524,12 +525,14 @@ static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {
 }
 
 static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
-	const char* content_type_name = mime_model_content_type(w->current_part);
+	char* content_type_name = mime_model_content_type(w->current_part);
 	char* exec = open_with(w->root_window, content_type_name);
+	free(content_type_name);
 	if(exec) {
 		register_changes(w);
 		open_part_with_external_app(w, GMIME_PART(w->current_part), exec);
 	}
+
 }
 
 static void panel_edit_external(WemedPanel* panel, gboolean open_with, WemedWindow* w) {

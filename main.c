@@ -1,4 +1,4 @@
-/* Copyright 2013-2017 Oliver Giles
+/* Copyright 2013-2022 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
 	textdomain("wemed");
 
 	gtk_init(&argc, &argv);
-	g_mime_init(0);
+	g_mime_init();
 
 	WemedWindow* w = wemed_window_create();
 

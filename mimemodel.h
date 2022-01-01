@@ -1,6 +1,6 @@
 #ifndef MIMEMODEL_H
 #define MIMEMODEL_H
-/* Copyright 2013 Oliver Giles
+/* Copyright 2013-2022 Oliver Giles
  * This file is part of Wemed. Wemed is licensed under the 
  * GNU GPL version 3. See LICENSE or <http://www.gnu.org/licenses/>
  * for more information */
@@ -26,7 +26,7 @@ void mime_model_create_blank_email(MimeModel* m);
 GtkTreeModel* mime_model_get_gtk_model(MimeModel*);
 void mime_model_filter_inline(MimeModel*, gboolean);
 
-const char *mime_model_content_type(GMimeObject* obj);
+char *mime_model_content_type(GMimeObject* obj);
 
 GMimeObject* mime_model_root(MimeModel*);
 
