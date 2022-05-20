@@ -172,9 +172,9 @@ void mime_model_create_blank_email(MimeModel* m) {
 	g_mime_multipart_get_boundary(GMIME_MULTIPART(m->message));
 	// add a multipart/alternative with text and html parts
 	GMimeObject* alternative = mime_model_new_node(m, m->message, "multipart/alternative");
+	mime_model_new_node(m, alternative, "text/plain");
 	GMimeObject* related = mime_model_new_node(m, alternative, "multipart/related");
 	mime_model_new_node(m, related, "text/html");
-	mime_model_new_node(m, alternative, "text/plain");
 }
 
 void mime_model_update_content(MimeModel* m, GMimePart* part, GString content) {
