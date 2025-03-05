@@ -78,17 +78,13 @@ GString wemed_panel_get_headers(WemedPanel* wp) {
 }
 
 static void get_content_callback(GObject *source_object, GAsyncResult *res, gpointer user_data) {
-	WebKitJavascriptResult *js_res;
 	JSCValue* val;
 	GString* out_str = (GString*) user_data;
 
-	js_res = webkit_web_view_run_javascript_finish (WEBKIT_WEB_VIEW (source_object), res, NULL);
-	g_assert(js_res);
-	val = webkit_javascript_result_get_js_value (js_res);
+	val = webkit_web_view_evaluate_javascript_finish (WEBKIT_WEB_VIEW (source_object), res, NULL);
 	g_assert(jsc_value_is_string(val));
 	out_str->str = jsc_value_to_string(val);
 	out_str->len = strlen(out_str->str);
-	webkit_javascript_result_unref (js_res);
 }
 
 // In webkit1 you could synchronously get the html contents. Making this method
@@ -106,7 +102,7 @@ GString wemed_panel_get_content(WemedPanel* wp) {
 		result.len = gtk_text_iter_get_offset(&end);
 	} else {
 		GMainContext* ctx = g_main_context_default();
-		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.documentElement.outerHTML", NULL, get_content_callback, &result);
+		webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.documentElement.outerHTML", -1, NULL, NULL, NULL, get_content_callback, &result);
 		while(result.str == NULL)
 			g_main_context_iteration(ctx, TRUE);
 	}
@@ -116,19 +112,19 @@ GString wemed_panel_get_content(WemedPanel* wp) {
 
 static void edit_bold_cb(GtkToolItem* item, WemedPanel* wp) {
 	GET_D(wp);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('bold',false,false)", NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('bold',false,false)", -1, NULL, NULL, NULL, NULL, NULL);
 }
 static void edit_italic_cb(GtkToolItem* item, WemedPanel* wp) {
 	GET_D(wp);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('italic',false,false)", NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('italic',false,false)", -1, NULL, NULL, NULL, NULL, NULL);
 }
 static void edit_uline_cb(GtkToolItem* item, WemedPanel* wp) {
 	GET_D(wp);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('underline',false,false)", NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('underline',false,false)", -1, NULL, NULL, NULL, NULL, NULL);
 }
 static void edit_strike_cb(GtkToolItem* item, WemedPanel* wp) {
 	GET_D(wp);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('strikethrough',false,false)", NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('strikethrough',false,false)", -1, NULL, NULL, NULL, NULL, NULL);
 }
 static void edit_font_cb(GtkFontButton* fb, WemedPanel* wp) {
 	GET_D(wp);
@@ -140,22 +136,22 @@ static void edit_font_cb(GtkFontButton* fb, WemedPanel* wp) {
 	char* size_cmd;
 	asprintf(&size_cmd, "window.getSelection().getRangeAt(0).commonAncestorContainer.parentNode.style.fontSize = '%dpt';", size/PANGO_SCALE);
 	if(pango_font_description_get_style(font) == PANGO_STYLE_ITALIC)
-		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('italic',false,false)", NULL, NULL, NULL);
+		webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('italic',false,false)", -1, NULL, NULL, NULL, NULL, NULL);
 	if(pango_font_description_get_weight(font) > PANGO_WEIGHT_MEDIUM)
-		webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('bold',false,false)", NULL, NULL, NULL);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), family_cmd, NULL, NULL, NULL);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), size_cmd, NULL, NULL, NULL);
+		webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('bold',false,false)", -1, NULL, NULL, NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), family_cmd, -1, NULL, NULL, NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), size_cmd, -1, NULL, NULL, NULL, NULL, NULL);
 	free(family_cmd);
 	free(size_cmd);
 	pango_font_description_free(font);
 }
 static void edit_ltr_cb(GtkToolItem* item, WemedPanel* wp) {
 	GET_D(wp);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.body.style.direction = 'ltr'", NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.body.style.direction = 'ltr'", -1, NULL, NULL, NULL, NULL, NULL);
 }
 static void edit_rtl_cb(GtkToolItem* item, WemedPanel* wp) {
 	GET_D(wp);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.body.style.direction = 'rtl'", NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.body.style.direction = 'rtl'", -1, NULL, NULL, NULL, NULL, NULL);
 }
 
 static void update_preview_cb(GtkFileChooser *file_chooser, gpointer data) {
@@ -201,7 +197,7 @@ static void edit_image_cb(GtkToolItem* item, WemedPanel* wp) {
 			if(cid) {
 				char* exec = 0;
 				asprintf(&exec, "document.execCommand('insertimage', false, 'cid:%s')", cid);
-				webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), exec, NULL, NULL, NULL);
+				webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), exec, -1, NULL, NULL, NULL, NULL, NULL);
 				free(cid);
 				free(exec);
 			}
@@ -304,7 +300,7 @@ static void wemed_panel_init(WemedPanel* wp) {
 
 	webkit_web_context_register_uri_scheme(d->webkit_ctx, "cid", load_cid_cb, wp, NULL);
 	webkit_web_view_set_editable(WEBKIT_WEB_VIEW(d->webview), TRUE);
-	webkit_web_view_run_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('styleWithCSS',false,true)", NULL, NULL, NULL);
+	webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(d->webview), "document.execCommand('styleWithCSS',false,true)", -1, NULL, NULL, NULL, NULL, NULL);
 
 	d->sourceview = gtk_source_view_new();
 	gtk_source_view_set_show_line_numbers(GTK_SOURCE_VIEW(d->sourceview), TRUE);

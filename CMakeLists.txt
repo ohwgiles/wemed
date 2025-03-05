@@ -5,6 +5,7 @@
 cmake_minimum_required(VERSION 3.11)
 project(wemed C)
 
+	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Config
 set(WEMED_WEBEXT_DIR "lib/wemed" CACHE STRING "Where to install and load the web extension relative to CMAKE_INSTALL_PREFIX")
 
