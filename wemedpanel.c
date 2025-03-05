@@ -10,9 +10,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include "mimeapp.h"
 #include "wemedpanel.h"
-#include "openwith.h"
 
 #include <libintl.h>
 #define _(str) gettext(str)

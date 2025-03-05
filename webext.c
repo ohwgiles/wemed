@@ -21,7 +21,8 @@ static void loaded_cb(WebKitWebPage* web_page, WemedExt* ext) {
 	JSCContext* ctx = webkit_frame_get_js_context(webkit_web_page_get_main_frame(web_page));
 	jsc_context_set_value(ctx, "__notifyChanged", jsc_value_new_function(ctx, NULL, G_CALLBACK(input_cb), web_page, NULL, G_TYPE_NONE, 0));
 	static const char *code = "document.documentElement.addEventListener('input', __notifyChanged);";
-	jsc_context_evaluate(ctx, code, strlen(code));
+	JSCValue *value = jsc_context_evaluate(ctx, code, strlen(code));
+	g_object_unref(value);
 }
 
 static gboolean send_request_cb(WebKitWebPage* web_page, WebKitURIRequest* request, WebKitURIResponse* redirected_response, WemedExt* ext) {

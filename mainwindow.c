@@ -246,7 +246,6 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	// TODO: only if it has changed
 	GString new_content = slurp_and_close(fopen(tmpfile, "rb"));
 	unlink(tmpfile); // be a tidy kiwi
-	free(tmpfile);
 
 	if(new_content.str) {
 		set_dirtied(NULL, w);
@@ -256,6 +255,7 @@ static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const c
 	} else {
 		fprintf(stderr, "failed to slurp %s\n", tmpfile);
 	}
+	free(tmpfile);
 }
 
 static void set_clean(WemedWindow* w) {
