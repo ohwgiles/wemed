@@ -12,7 +12,7 @@ set(WEMED_WEBEXT_DIR "lib/wemed" CACHE STRING "Where to install and load the web
 # Dependencies
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
-pkg_check_modules(WEBKITGTK3 REQUIRED webkit2gtk-4.0)
+pkg_check_modules(WEBKITGTK3 REQUIRED webkit2gtk-4.1)
 pkg_check_modules(GMIME3 REQUIRED gmime-3.0)
 pkg_check_modules(GTKSOURCEVIEW4 REQUIRED gtksourceview-4)
 

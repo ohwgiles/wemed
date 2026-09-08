@@ -223,7 +223,7 @@ static void tree_selection_changed(MimeTree* tree, GMimeObject* obj, WemedWindow
 	set_current_part(w, obj);
 }
 
-static void open_part_with_external_app(WemedWindow* w, GMimePart* part, const char* app) {
+static void open_part_with_external_app(WemedWindow* w, GMimePart* part, char* app) {
 	char* tmpfile = strdup("/tmp/wemed-tmpfile-XXXXXX");
 	int fd = mkstemp(tmpfile);
 	FILE* fp = fdopen(fd, "wb");
@@ -484,7 +484,7 @@ static char* import_file_into_tree(WemedWindow* w,  GMimeObject* parent_or_sibli
 	char* cid;
 	asprintf(&cid, "part%d_%u", partnum++, (unsigned int)time(0));
 	g_mime_part_set_content_id(part, cid);
-	char* slashpos = strrchr(filename, '/');
+	const char* slashpos = strrchr(filename, '/');
 	g_mime_part_set_filename(part, slashpos? &slashpos[1] : filename);
 	if(disposition)
 		g_mime_object_set_disposition((GMimeObject*) part, disposition);
@@ -521,7 +521,9 @@ static void menu_part_new_from_file(GtkMenuItem* item, WemedWindow* w) {
 
 static void menu_part_edit(GtkMenuItem* item, WemedWindow* w) {
 	register_changes(w);
-	open_part_with_external_app(w, GMIME_PART(w->current_part), w->mime_app.exec);
+	char *e = strdup(w->mime_app.exec);
+	open_part_with_external_app(w, GMIME_PART(w->current_part), e);
+	free(e);
 }
 
 static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
@@ -531,6 +533,7 @@ static void menu_part_edit_with(GtkMenuItem* item, WemedWindow* w) {
 	if(exec) {
 		register_changes(w);
 		open_part_with_external_app(w, GMIME_PART(w->current_part), exec);
+		free(exec);
 	}
 
 }

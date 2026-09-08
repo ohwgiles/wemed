@@ -18,7 +18,11 @@ static void input_cb(WebKitWebPage* web_page) {
 }
 
 static void loaded_cb(WebKitWebPage* web_page, WemedExt* ext) {
+	// Long-term solution is to move to new webkitgtk-6.0 and gtk-4.0
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 	JSCContext* ctx = webkit_frame_get_js_context(webkit_web_page_get_main_frame(web_page));
+#pragma GCC diagnostic pop
 	jsc_context_set_value(ctx, "__notifyChanged", jsc_value_new_function(ctx, NULL, G_CALLBACK(input_cb), web_page, NULL, G_TYPE_NONE, 0));
 	static const char *code = "document.documentElement.addEventListener('input', __notifyChanged);";
 	JSCValue *value = jsc_context_evaluate(ctx, code, strlen(code));
